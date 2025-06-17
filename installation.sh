@@ -28,7 +28,7 @@ echo "1️⃣  Setup with LATEST version"
 echo "2️⃣  Setup with DOWNGRADED version (recommended)"
 echo "3️⃣  Fix all issues (Dependencies + Known bugs only)"
 echo "=================================================="
-read -p "👉 Enter your choice [1/2/3/4]: " version_choice
+read -p "👉 Enter your choice [1/2/3]: " version_choice
 
 # -------------------------------------
 # 3️⃣ Fix All Dependencies & Bugs
