@@ -21,7 +21,8 @@ CONFIG_FILE="$SWARM_DIR/.swarm_config"
 TEMP_DATA_PATH="$SWARM_DIR/modal-login/temp-data"
 HOME_DIR="$HOME"
 LOG_FILE="$HOME/swarm_log.txt"
-NODE_PID_FILE="$HOME/.node_pid"  
+NODE_PID_FILE="$HOME/.node_pid"
+SWAP_FILE="/swapfile"
 
 # ----------------------------------------
 # Global Variables
@@ -91,6 +92,23 @@ validate_environment() {
 }
 
 # ----------------------------------------
+# Swapfile Management
+# ----------------------------------------
+manage_swapfile() {
+    if [ ! -f "$SWAP_FILE" ]; then
+        log_message "INFO" "Creating swapfile at $SWAP_FILE"
+        sudo fallocate -l 2G "$SWAP_FILE"
+        sudo chmod 600 "$SWAP_FILE"
+        sudo mkswap "$SWAP_FILE"
+        sudo swapon "$SWAP_FILE"
+        echo "$SWAP_FILE none swap sw 0 0" | sudo tee -a /etc/fstab
+        [ $? -eq 0 ] && log_message "INFO" "Swapfile created and enabled" || log_message "ERROR" "Failed to create swapfile"
+    else
+        log_message "INFO" "Swapfile already exists"
+    fi
+}
+
+# ----------------------------------------
 # Backup Function
 # ----------------------------------------
 backup_files() {
@@ -148,6 +166,22 @@ setup_python_env() {
     source .venv/bin/activate
     [ -f "requirements.txt" ] && pip install -r requirements.txt >/dev/null 2>&1 && log_message "INFO" "Installed dependencies" || log_message "WARN" "Failed to install dependencies"
 }
+# ----------------------------------------
+# Remove Swapfile
+# ----------------------------------------
+remove_swapfile() {
+    log_message "INFO" "Removing swapfile at $SWAP_FILE"
+    if [ -f "$SWAP_FILE" ]; then
+        sudo swapoff "$SWAP_FILE" 2>/dev/null
+        [ $? -eq 0 ] && log_message "INFO" "Swapfile disabled" || log_message "WARN" "Failed to disable swapfile"
+        sudo rm -f "$SWAP_FILE" 2>/dev/null
+        [ $? -eq 0 ] && log_message "INFO" "Swapfile removed" || log_message "ERROR" "Failed to remove swapfile"
+        sudo sed -i "\|$SWAP_FILE|d" /etc/fstab
+        [ $? -eq 0 ] && log_message "INFO" "Removed swapfile entry from /etc/fstab" || log_message "WARN" "Failed to remove swapfile entry from /etc/fstab"
+    else
+        log_message "INFO" "No swapfile found"
+    fi
+}
 
 # ----------------------------------------
 # Launch Function
@@ -187,6 +221,7 @@ auto_fix() {
     [ ! -f "$SWARM_DIR/run_rl_swarm.sh" ] && clone_repository
     [ ! -d "$SWARM_DIR/.venv" ] || [ ! -f "$SWARM_DIR/.venv/bin/activate" ] && rm -rf "$SWARM_DIR/.venv" && setup_python_env
     restore_files
+    manage_swapfile
     log_message "INFO" "Auto-fix completed"
 }
 
@@ -271,7 +306,6 @@ display_logo() {
     echo -e "${NC}"
 }
 
-
 # ----------------------------------------
 # Stop Handler (Ctrl+X)
 # ----------------------------------------
@@ -281,6 +315,7 @@ stop_script() {
     [ $BACKGROUND_PID -ne 0 ] && kill $BACKGROUND_PID 2>/dev/null && log_message "INFO" "Terminated backup (PID: $BACKGROUND_PID)"
     [ $NODE_PID -ne 0 ] && kill $NODE_PID 2>/dev/null && log_message "INFO" "Terminated node (PID: $NODE_PID)"
     echo -e "${GREEN}✅ Stopped Gracefully${NC}"
+    remove_swapfile
     exit 0
 }
 
@@ -288,7 +323,7 @@ stty intr ^X
 trap stop_script INT
 
 # ----------------------------------------
-# Main Menu (OP wala)
+# Main Menu
 # ----------------------------------------
 while true; do
     clear
@@ -296,6 +331,7 @@ while true; do
     echo -e "${BOLD}${CYAN}🎉 GENSYN RL-SWARM LAUNCHER MENU 🎉${NC}\n"
     log_message "INFO" "Displaying menu"
     validate_environment
+    manage_swapfile
 
     if [ -f "$HOME_DIR/swarm.pem" ] || [ -f "$HOME_DIR/userData.json" ] || [ -f "$HOME_DIR/userApiKey.json" ] || [ -d "$SWARM_DIR" ]; then
         echo -e "${YELLOW}${BOLD}⚠️ Existing Setup Detected!${NC}"
@@ -311,7 +347,7 @@ while true; do
         log_message "INFO" "No setup found. Starting fresh"
         echo -e "${GREEN}✅ No Setup Found. Starting Fresh...${NC}"
         clone_repository
-        setup . setup_python_env
+        setup_python_env
         launch_rl_swarm
         exit 0
     fi
