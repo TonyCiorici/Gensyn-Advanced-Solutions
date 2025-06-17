@@ -27,24 +27,8 @@ echo "=================================================="
 echo "1️⃣  Setup with LATEST version"
 echo "2️⃣  Setup with DOWNGRADED version (recommended)"
 echo "3️⃣  Fix all issues (Dependencies + Known bugs only)"
-echo "4️⃣  Backup Credentials only"
 echo "=================================================="
 read -p "👉 Enter your choice [1/2/3/4]: " version_choice
-
-# -------------------------------------
-# 4️⃣ Backup Credentials Only
-# -------------------------------------
-if [[ "$version_choice" == "4" ]]; then
-    echo -e "${YELLOW}📦 Starting Backup Process...${NC}"
-    bash -c "$(curl -fsSL https://raw.githubusercontent.com/zunxbt/gensyn-testnet/main/backup.sh)"
-    if [ $? -eq 0 ]; then
-        echo -e "${GREEN}📝 Open all 3 backup links and save credentials safely.${NC}"
-        echo -e "${GREEN}✅ Backup process completed.${NC}"
-    else
-        echo -e "${RED}❌ Backup script failed to run.${NC}"
-    fi
-    exit 0
-fi
 
 # -------------------------------------
 # 3️⃣ Fix All Dependencies & Bugs
