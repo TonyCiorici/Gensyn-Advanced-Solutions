@@ -160,12 +160,12 @@ clone_repository() {
 # Python Environment Setup
 # ----------------------------------------
 setup_python_env() {
-    log_message "INFO" "Setting up Python environment"
-    cd "$SWARM_DIR" || { log_message "ERROR" "Could not access $SWARM_DIR"; exit 1; }
-    [ ! -d ".venv" ] && python3 -m venv .venv 2>/dev/null && log_message "INFO" "Created virtual environment" || [ -d ".venv" ] || { log_message "ERROR" "Failed to create venv"; exit 1; }
+    cd "$SWARM_DIR" || exit 1
+    [ ! -d ".venv" ] && python3 -m venv .venv 2>/dev/null || [ -d ".venv" ] || exit 1
     source .venv/bin/activate
-    [ -f "requirements.txt" ] && pip install -r requirements.txt >/dev/null 2>&1 && log_message "INFO" "Installed dependencies" || log_message "WARN" "Failed to install dependencies"
+    [ -f "requirements.txt" ] && pip install -r requirements.txt >/dev/null 2>&1
 }
+
 
 # ----------------------------------------
 # Remove Swapfile
