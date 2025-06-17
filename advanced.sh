@@ -4,22 +4,22 @@
 # set -x
 
 # ----------------------------------------
-# Styling
+# Styling with tput (No raw escape codes)
 # ----------------------------------------
-BOLD="\e[1m"
-RED="\e[31m"
-GREEN="\e[32m"
-YELLOW="\e[33m"
-CYAN="\e[36m"
-NC="\e[0m"
+BOLD=$(tput bold)
+RED=$(tput setaf 1)
+GREEN=$(tput setaf 2)
+YELLOW=$(tput setaf 3)
+CYAN=$(tput setaf 6)
+NC=$(tput sgr0)
 
 # ----------------------------------------
 # Paths
 # ----------------------------------------
 SWARM_DIR="$HOME/rl-swarm"
+CONFIG_FILE="$SWARM_DIR/.swarm_config"
 TEMP_DATA_PATH="$SWARM_DIR/modal-login/temp-data"
 HOME_DIR="$HOME"
-AUTO_INPUT_FILE="$HOME/.swarm_auto_inputs"
 LOG_FILE="$HOME/swarm_log.txt"
 NODE_PID_FILE="$HOME/.node_pid"  
 
@@ -38,7 +38,6 @@ log_message() {
     local message="$2"
     local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
     echo "[$timestamp] [$level] $message" >> "$LOG_FILE"
-    # Only display ERROR or WARN in terminal
     case "$level" in
         ERROR) echo -e "${RED}$message${NC}" ;;
         WARN) echo -e "${YELLOW}$message${NC}" ;;
@@ -57,19 +56,19 @@ cd "$HOME" || { log_message "ERROR" "Could not access $HOME. Exiting."; exit 1; 
 # Default Config
 # ----------------------------------------
 create_default_config() {
-    log_message "INFO" "Creating default config at $AUTO_INPUT_FILE"
-    cat <<EOF > "$AUTO_INPUT_FILE"
-Y
-A
-7
-N
-
+    log_message "INFO" "Creating default config at $CONFIG_FILE"
+    cat <<EOF > "$CONFIG_FILE"
+TESTNET=Y
+SWARM=A
+PARAM=7
+PUSH=N
 EOF
-    chmod 600 "$AUTO_INPUT_FILE"
+    chmod 600 "$CONFIG_FILE"
     [ $? -eq 0 ] && log_message "INFO" "Default config created" || log_message "ERROR" "Failed to create default config"
 }
 
-if [ ! -f "$AUTO_INPUT_FILE" ]; then
+if [ ! -f "$CONFIG_FILE" ]; then
+    mkdir -p "$SWARM_DIR"
     create_default_config
 fi
 
@@ -79,85 +78,52 @@ fi
 validate_environment() {
     log_message "INFO" "Validating and installing environment dependencies"
     local missing_deps=()
-
-    if ! command -v git >/dev/null 2>&1; then
-        missing_deps+=("git")
-    fi
-
-    if ! command -v python3 >/dev/null 2>&1; then
-        missing_deps+=("python3")
-    fi
-
-    if ! python3 -m venv --help >/dev/null 2>&1; then
-        missing_deps+=("python3-venv")
-    fi
-
+    if ! command -v git >/dev/null 2>&1; then missing_deps+=("git"); fi
+    if ! command -v python3 >/dev/null 2>&1; then missing_deps+=("python3"); fi
+    if ! python3 -m venv --help >/dev/null 2>&1; then missing_deps+=("python3-venv"); fi
     if [ ${#missing_deps[@]} -gt 0 ]; then
         log_message "INFO" "Installing missing dependencies: ${missing_deps[*]}"
         sudo apt update >/dev/null 2>&1
         sudo apt install -y "${missing_deps[@]}" >/dev/null 2>&1
-        [ $? -eq 0 ] && log_message "INFO" "Installed dependencies: ${missing_deps[*]}" || { log_message "ERROR" "Failed to install dependencies: ${missing_deps[*]}. Exiting."; exit 1; }
+        [ $? -eq 0 ] && log_message "INFO" "Installed dependencies" || { log_message "ERROR" "Failed to install dependencies"; exit 1; }
     fi
-
-    log_message "INFO" "Environment validated: git, python3, and venv available"
+    log_message "INFO" "Environment validated"
 }
 
 # ----------------------------------------
-# Backup Function (to HOME, only if needed)
+# Backup Function
 # ----------------------------------------
 backup_files() {
-    log_message "INFO" "Checking for backup to $HOME_DIR"
+    log_message "INFO" "Backing up files to $HOME_DIR"
     mkdir -p "$TEMP_DATA_PATH" "$HOME_DIR"
     chmod 700 "$TEMP_DATA_PATH" "$HOME_DIR"
-    [ $? -eq 0 ] || log_message "ERROR" "Failed to set permissions on $TEMP_DATA_PATH or $HOME_DIR"
-
     local copied=0
     for src in "$SWARM_DIR/swarm.pem" "$TEMP_DATA_PATH/userData.json" "$TEMP_DATA_PATH/userApiKey.json"; do
         dest="$HOME_DIR/$(basename "$src")"
         if [ -f "$src" ] && [ ! -f "$dest" ]; then
-            if cp -f "$src" "$dest" 2>/dev/null; then
-                chmod 600 "$dest"
-                log_message "INFO" "Backed up $(basename "$src") to $HOME_DIR"
-                ((copied++))
-            else
-                log_message "ERROR" "Failed to back up $(basename "$src") to $HOME_DIR"
-            fi
+            cp -f "$src" "$dest" 2>/dev/null && chmod 600 "$dest" && ((copied++)) && log_message "INFO" "Backed up $(basename "$src")" || log_message "ERROR" "Backup failed for $(basename "$src")"
         fi
     done
-
     [ $copied -gt 0 ] && log_message "INFO" "Backed up $copied file(s)"
 }
 
 # ----------------------------------------
-# Restore Function (from HOME)
+# Restore Function
 # ----------------------------------------
 restore_files() {
     log_message "INFO" "Restoring files to $SWARM_DIR"
     mkdir -p "$TEMP_DATA_PATH"
     chmod 700 "$TEMP_DATA_PATH"
-    [ $? -eq 0 ] || log_message "ERROR" "Failed to create $TEMP_DATA_PATH"
-
     local restored=0
     for src in "$HOME_DIR/swarm.pem" "$HOME_DIR/userData.json" "$HOME_DIR/userApiKey.json"; do
         if [ -f "$src" ]; then
             dest="$SWARM_DIR/$(basename "$src")"
-            if [[ "$(basename "$src")" == "userData.json" || "$(basename "$src")" == "userApiKey.json" ]]; then
-                dest="$TEMP_DATA_PATH/$(basename "$src")"
-            fi
+            if [[ "$(basename "$src")" =~ (userData|userApiKey)\.json ]]; then dest="$TEMP_DATA_PATH/$(basename "$src")"; fi
             if [ ! -f "$dest" ]; then
-                if cp -f "$src" "$dest" 2>/dev/null; then
-                    chmod 600 "$dest"
-                    log_message "INFO" "Restored $(basename "$src") to $dest"
-                    ((restored++))
-                else
-                    log_message "ERROR" "Failed to restore $(basename "$src") to $dest"
-                fi
-            else
-                log_message "INFO" "$(basename "$src") already exists in $dest, skipping restore"
+                cp -f "$src" "$dest" 2>/dev/null && chmod 600 "$dest" && ((restored++)) && log_message "INFO" "Restored $(basename "$src")" || log_message "ERROR" "Restore failed for $(basename "$src")"
             fi
         fi
     done
-
     [ $restored -gt 0 ] && log_message "INFO" "Restored $restored file(s)"
 }
 
@@ -168,62 +134,43 @@ clone_repository() {
     log_message "INFO" "Cloning rl-swarm to $SWARM_DIR"
     rm -rf "$SWARM_DIR" 2>/dev/null
     git clone https://github.com/gensyn-ai/rl-swarm.git "$SWARM_DIR" > /dev/null 2>&1
-    if [ $? -eq 0 ]; then
-        log_message "INFO" "Repository cloned successfully"
-        chmod -R 700 "$SWARM_DIR"
-    else
-        log_message "ERROR" "Failed to clone rl-swarm repository. Exiting."
-        exit 1
-    fi
+    [ $? -eq 0 ] && log_message "INFO" "Repository cloned" && chmod -R 700 "$SWARM_DIR" || { log_message "ERROR" "Failed to clone repository"; exit 1; }
+    create_default_config
 }
 
 # ----------------------------------------
 # Python Environment Setup
 # ----------------------------------------
 setup_python_env() {
-    log_message "INFO" "Setting up Python environment in $SWARM_DIR"
-    cd "$SWARM_DIR" || { log_message "ERROR" "Could not access $SWARM_DIR. Exiting."; exit 1; }
-    if [ ! -d ".venv" ]; then
-        python3 -m venv .venv 2>/dev/null
-        [ $? -eq 0 ] && log_message "INFO" "Created virtual environment" || { log_message "ERROR" "Failed to create virtual environment"; exit 1; }
-    fi
+    log_message "INFO" "Setting up Python environment"
+    cd "$SWARM_DIR" || { log_message "ERROR" "Could not access $SWARM_DIR"; exit 1; }
+    [ ! -d ".venv" ] && python3 -m venv .venv 2>/dev/null && log_message "INFO" "Created virtual environment" || [ -d ".venv" ] || { log_message "ERROR" "Failed to create venv"; exit 1; }
     source .venv/bin/activate
-    if [ -f "requirements.txt" ]; then
-        pip install -r requirements.txt >/dev/null 2>&1
-        [ $? -eq 0 ] && log_message "INFO" "Installed Python dependencies" || log_message "WARN" "Failed to install dependencies"
-    fi
-    log_message "INFO" "Python environment activated"
+    [ -f "requirements.txt" ] && pip install -r requirements.txt >/dev/null 2>&1 && log_message "INFO" "Installed dependencies" || log_message "WARN" "Failed to install dependencies"
 }
 
 # ----------------------------------------
 # Launch Function
 # ----------------------------------------
 launch_rl_swarm() {
-    log_message "INFO" "Checking for run_rl_swarm.sh"
-    if [ ! -f "$SWARM_DIR/run_rl_swarm.sh" ]; then
-        log_message "ERROR" "run_rl_swarm.sh not found in $SWARM_DIR. Exiting."
-        exit 1
-    fi
+    log_message "INFO" "Launching rl-swarm"
+    [ ! -f "$SWARM_DIR/run_rl_swarm.sh" ] && { log_message "ERROR" "run_rl_swarm.sh not found"; exit 1; }
     chmod +x "$SWARM_DIR/run_rl_swarm.sh"
-    if [ -f "$AUTO_INPUT_FILE" ]; then
-        IFS=$'\n' read -r testnet swarm param push hf_token < "$AUTO_INPUT_FILE"
-        log_message "INFO" "Launching rl-swarm with config: Testnet=$testnet, Swarm=$swarm, Param=$param, Push=$push"
-        cd "$SWARM_DIR" || { log_message "ERROR" "Could not access $SWARM_DIR. Exiting."; exit 1; }
-        source .venv/bin/activate
+    if [ -f "$CONFIG_FILE" ]; then
+        source "$CONFIG_FILE"
+        log_message "INFO" "Using config: Testnet=$TESTNET, Swarm=$SWARM, Param=$PARAM, Push=$PUSH"
+        cd "$SWARM_DIR" && source .venv/bin/activate
         ./run_rl_swarm.sh <<EOF
-$testnet
-$swarm
-$param
-$push
-$hf_token
+$TESTNET
+$SWARM
+$PARAM
+$PUSH
 EOF
         local exit_code=$?
         backup_files
         return $exit_code
     else
-        log_message "INFO" "Launching rl-swarm with manual input"
-        cd "$SWARM_DIR" || { log_message "ERROR" "Could not access $SWARM_DIR. Exiting."; exit 1; }
-        source .venv/bin/activate
+        cd "$SWARM_DIR" && source .venv/bin/activate
         ./run_rl_swarm.sh
         local exit_code=$?
         backup_files
@@ -235,197 +182,160 @@ EOF
 # Auto-Fix Function
 # ----------------------------------------
 auto_fix() {
-    log_message "INFO" "Running auto-fix checks"
-    if [ ! -d "$SWARM_DIR" ]; then
-        log_message "WARN" "$SWARM_DIR missing. Cloning repository."
-        clone_repository
-    fi
-    if [ ! -f "$SWARM_DIR/run_rl_swarm.sh" ]; then
-        log_message "WARN" "run_rl_swarm.sh missing. Re-cloning repository."
-        clone_repository
-    fi
-    if [ ! -d "$SWARM_DIR/.venv" ] || [ ! -f "$SWARM_DIR/.venv/bin/activate" ]; then
-        log_message "WARN" "Python environment missing or broken. Re-creating."
-        rm -rf "$SWARM_DIR/.venv"
-        setup_python_env
-    fi
+    log_message "INFO" "Running auto-fix"
+    [ ! -d "$SWARM_DIR" ] && clone_repository
+    [ ! -f "$SWARM_DIR/run_rl_swarm.sh" ] && clone_repository
+    [ ! -d "$SWARM_DIR/.venv" ] || [ ! -f "$SWARM_DIR/.venv/bin/activate" ] && rm -rf "$SWARM_DIR/.venv" && setup_python_env
     restore_files
     log_message "INFO" "Auto-fix completed"
 }
 
 # ----------------------------------------
-# Menu Option 1: Auto-restart with existing files
+# Menu Options
 # ----------------------------------------
 option_1() {
-    log_message "INFO" "Selected Option 1: Auto-restart with existing files"
+    log_message "INFO" "Option 1: Auto-restart with existing files"
     auto_fix
     setup_python_env
     backup_files
     while [ $STOP_REQUESTED -eq 0 ]; do
-        log_message "INFO" "Starting rl-swarm"
         restore_files
         launch_rl_swarm
-        local exit_code=$?
-        log_message "WARN" "rl-swarm exited with code $exit_code. Restarting in 1 second..."
+        log_message "WARN" "rl-swarm exited. Restarting in 1s..."
         auto_fix
         setup_python_env
         sleep 1
     done
 }
 
-# ----------------------------------------
-# Menu Option 2: Run once with existing files
-# ----------------------------------------
 option_2() {
-    log_message "INFO" "Selected Option 2: Run once with existing files"
+    log_message "INFO" "Option 2: Run once with existing files"
     auto_fix
     setup_python_env
     backup_files
     restore_files
-    log_message "INFO" "Starting rl-swarm (no auto-restart)"
     launch_rl_swarm
 }
 
-# ----------------------------------------
-# Menu Option 3: Delete and start fresh
-# ----------------------------------------
 option_3() {
-    log_message "INFO" "Selected Option 3: Delete and start fresh"
-    log_message "WARN" "Deleting old rl-swarm directory"
+    log_message "INFO" "Option 3: Delete and start fresh"
     rm -rf "$SWARM_DIR"
     clone_repository
     setup_python_env
-    log_message "INFO" "Starting fresh rl-swarm"
     launch_rl_swarm
 }
 
-# ----------------------------------------
-# Menu Option 4: Update configuration
-# ----------------------------------------
 option_4() {
-    log_message "INFO" "Selected Option 4: Update configuration"
-    echo -e "${CYAN}⚙️ Updating configuration...${NC}"
-    read -p "${YELLOW}➡️ Connect to Testnet? (Y/n) [Y]: ${NC}" testnet
-    testnet=${testnet:-Y}
-    read -p "${YELLOW}➡️ Swarm type? (A=Math, B=Math Hard) [A]: ${NC}" swarm
-    swarm=${swarm:-A}
-    read -p "${YELLOW}➡️ Parameter count (0.5, 1.5, 7, 32, 72) [7]: ${NC}" param
-    param=${param:-7}
-    read -p "${YELLOW}➡️ Push to Hugging Face Hub? (y/N) [N]: ${NC}" push
-    push=${push:-N}
-    hf_token=""
-    [[ "$push" =~ [Yy] ]] && read -p "${YELLOW}🔑 Enter HuggingFace token: ${NC}" hf_token
-    cat <<EOF > "$AUTO_INPUT_FILE"
-$testnet
-$swarm
-$param
-$push
-$hf_token
+    log_message "INFO" "Option 4: Update configuration"
+    echo -e "${CYAN}⚙️ Updating Configuration...${NC}"
+    source "$CONFIG_FILE"
+    echo -e "${GREEN}✅ Testnet: Y (Fixed)${NC}"
+    echo -e "${GREEN}✅ Push to HF: N (Fixed)${NC}"
+    read -p "${YELLOW}➡️ Swarm type (A=Math, B=Math Hard) [$SWARM]: ${NC}" swarm
+    swarm=${swarm:-$SWARM}
+    read -p "${YELLOW}➡️ Parameter count (0.5, 1.5, 7, 32, 72) [$PARAM]: ${NC}" param
+    param=${param:-$PARAM}
+    cat <<EOF > "$CONFIG_FILE"
+TESTNET=Y
+SWARM=$swarm
+PARAM=$param
+PUSH=N
 EOF
-    chmod 600 "$AUTO_INPUT_FILE"
-    [ $? -eq 0 ] && log_message "INFO" "Configuration saved to $AUTO_INPUT_FILE" || log_message "ERROR" "Failed to save configuration"
-    echo -e "${GREEN}✅ Config saved!${NC}"
+    chmod 600 "$CONFIG_FILE"
+    [ $? -eq 0 ] && log_message "INFO" "Config saved" && echo -e "${GREEN}✅ Config Updated!${NC}" || log_message "ERROR" "Failed to save config"
     exit 0
 }
 
-# ----------------------------------------
-# Menu Option 5: Fix All Errors
-# ----------------------------------------
 option_5() {
-    log_message "INFO" "Selected Option 5: Fixing all errors"
-    echo -e "${CYAN}🛠️ Fixing BF16 / Login / DHTNode Bootstrap Error / Minor Errors...${NC}"
+    log_message "INFO" "Option 5: Fix all errors"
+    echo -e "${CYAN}🛠️ Fixing Errors...${NC}"
     bash -c "$(curl -fsSL https://raw.githubusercontent.com/hustleairdrops/Gensyn_Guide_with_all_solutions/main/solutions_file/fixall.sh)" >/dev/null 2>&1
-    [ $? -eq 0 ] && echo -e "${GREEN}✅ Errors fixed successfully!${NC}" || echo -e "${RED}❌ Error fixing failed. Check logs.${NC}"
-    log_message "INFO" "Error fixing completed"
+    [ $? -eq 0 ] && echo -e "${GREEN}✅ Errors Fixed!${NC}" || echo -e "${RED}❌ Fix Failed. Check Logs.${NC}"
 }
 
 # ----------------------------------------
-# Display Logo
+# Display Logo (OP Design)
 # ----------------------------------------
 display_logo() {
-    echo -e "${CYAN}"
-    echo -e " ██╗░░██╗██╗░░░██╗░██████╗████████╗██╗░░░░░███████╗  ░█████╗░██╗██████╗░██████╗░██████╗░░█████╗░██████╗░░██████╗ "
-    echo -e " ██║░░██║██║░░░██║██╔════╝╚══██╔══╝██║░░░░░██╔════╝  ██╔══██╗██║██╔══██╗██╔══██╗██╔══██╗██╔══██╗██╔══██╗██╔════╝ "
-    echo -e " ███████║██║░░░██║╚█████╗░░░░██║░░░██║░░░░░█████╗░░  ███████║██║██████╔╝██║░░██║██████╔╝██║░░██║██████╔╝╚█████╗░ "
-    echo -e " ██╔══██║██║░░░██║░╚═══██╗░░░██║░░░██║░░░░░██╔══╝░░  ██╔══██║██║██╔══██╗██║░░██║██╔══██╗██║░░██║██╔═══╝░░╚═══██╗ "
-    echo -e " ██║░░██║╚██████╔╝██████╔╝░░░██║░░░███████╗███████╗  ██║░░██║██║██║░░██║██████╔╝██║░░██║╚█████╔╝██║░░░░░██████╔╝ "
-    echo -e " ╚═╝░░╚═╝░╚═════╝░╚═════╝░░░░╚═╝░░░╚══════╝╚══════╝  ╚═╝░░╚═╝╚═╝╚═╝░░╚═╝╚═════╝░╚═╝░░╚═╝░╚════╝░╚═╝░░░░░╚═════╝░ "
-    echo -e "${YELLOW}        Gensyn Node Guide By Hustle Airdrops"
-    echo -e "        https://github.com/HustleAirdrops"
+    echo -e "${CYAN}${BOLD}"
+    echo "┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐"
+    echo "│  ██╗░░██╗██╗░░░██╗░██████╗████████╗██╗░░░░░███████╗  ░█████╗░██╗██████╗░██████╗░██████╗░░█████╗░██████╗░░██████╗  │"
+    echo "│  ██║░░██║██║░░░██║██╔════╝╚══██╔══╝██║░░░░░██╔════╝  ██╔══██╗██║██╔══██╗██╔══██╗██╔══██╗██╔══██╗██╔══██╗██╔════╝  │"
+    echo "│  ███████║██║░░░██║╚█████╗░░░░██║░░░██║░░░░░█████╗░░  ███████║██║██████╔╝██║░░██║██████╔╝██║░░██║██████╔╝╚█████╗░  │"
+    echo "│  ██╔══██║██║░░░██║░╚═══██╗░░░██║░░░██║░░░░░██╔══╝░░  ██╔══██║██║██╔══██╗██║░░██║██╔══██╗██║░░██║██╔═══╝░░╚═══██╗  │"
+    echo "│  ██║░░██║╚██████╔╝██████╔╝░░░██║░░░███████╗███████╗  ██║░░██║██║██║░░██║██████╔╝██║░░██║╚█████╔╝██║░░░░░██████╔╝  │"
+    echo "│  ╚═╝░░╚═╝░╚═════╝░╚═════╝░░░░╚═╝░░░╚══════╝╚══════╝  ╚═╝░░╚═╝╚═╝╚═╝░░╚═╝╚═════╝░╚═╝░░╚═╝░╚════╝░╚═╝░░░░░╚═════╝░  │"
+    echo "└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘"
+    echo -e "${YELLOW}           🚀 Gensyn RL-Swarm Launcher by Hustle Airdrops 🚀${NC}"
+    echo -e "${YELLOW}              GitHub: https://github.com/HustleAirdrops${NC}"
     echo -e "${NC}"
 }
 
+
 # ----------------------------------------
-# Stop Command Handler (Ctrl+X)
+# Stop Handler (Ctrl+X)
 # ----------------------------------------
 stop_script() {
-    log_message "INFO" "Ctrl+X detected. Stopping script..."
+    log_message "INFO" "Stopping script (Ctrl+X)"
     STOP_REQUESTED=1
-    if [ $BACKGROUND_PID -ne 0 ]; then
-        kill $BACKGROUND_PID 2>/dev/null
-        log_message "INFO" "Terminated background backup process (PID: $BACKGROUND_PID)"
-    fi
-    if [ $NODE_PID -ne 0 ]; then
-        kill $NODE_PID 2>/dev/null
-        log_message "INFO" "Terminated node process (PID: $NODE_PID)"
-    fi
-    echo -e "${GREEN}✅ Script and node stopped gracefully.${NC}"
+    [ $BACKGROUND_PID -ne 0 ] && kill $BACKGROUND_PID 2>/dev/null && log_message "INFO" "Terminated backup (PID: $BACKGROUND_PID)"
+    [ $NODE_PID -ne 0 ] && kill $NODE_PID 2>/dev/null && log_message "INFO" "Terminated node (PID: $NODE_PID)"
+    echo -e "${GREEN}✅ Stopped Gracefully${NC}"
     exit 0
 }
 
-# Configure Ctrl+X (ASCII 24) using stty
 stty intr ^X
 trap stop_script INT
 
 # ----------------------------------------
-# Show Smart Menu
+# Main Menu (OP wala)
 # ----------------------------------------
 while true; do
     clear
     display_logo
-    echo -e "${BOLD}${CYAN}\n🧠 GENSYN RL-SWARM LAUNCHER${NC}\n"
-    log_message "INFO" "Displaying main menu"
-
+    echo -e "${BOLD}${CYAN}🎉 GENSYN RL-SWARM LAUNCHER MENU 🎉${NC}\n"
+    log_message "INFO" "Displaying menu"
     validate_environment
 
     if [ -f "$HOME_DIR/swarm.pem" ] || [ -f "$HOME_DIR/userData.json" ] || [ -f "$HOME_DIR/userApiKey.json" ] || [ -d "$SWARM_DIR" ]; then
-        echo -e "${BOLD}${YELLOW}⚠️ Existing setup detected. Choose an option:${NC}"
-        echo -e "  ${BOLD}1️⃣ Run with existing files (Auto-restart on crash)${NC}"
-        echo -e "  ${BOLD}2️⃣ Run normally with existing files${NC}"
-        echo -e "  ${BOLD}3️⃣ Delete and start fresh${NC}"
-        echo -e "  ${BOLD}4️⃣ Update configuration${NC}"
-        echo -e "  ${BOLD}5️⃣ Fix all errors (BF16/Login/DHTNode/Minor)${NC}"
-        echo -e "${CYAN}ℹ️ Press Ctrl+X to stop the script at any time.${NC}"
+        echo -e "${YELLOW}${BOLD}⚠️ Existing Setup Detected!${NC}"
+        echo -e "${GREEN}-------------------------------------------------${NC}"
+        echo "  ||   ${BOLD}${CYAN}1️⃣ Auto-Restart Mode${NC} - Run with existing files, restarts on crash"
+        echo "  ||   ${BOLD}${CYAN}2️⃣ Single Run${NC} - Run once with existing files"
+        echo "  ||   ${BOLD}${CYAN}3️⃣ Fresh Start${NC} - Delete everything and start anew"
+        echo "  ||   ${BOLD}${CYAN}4️⃣ Update Config${NC} - Change Swarm type and Parameter count"
+        echo "  ||   ${BOLD}${CYAN}5️⃣ Fix Errors${NC} - Resolve BF16/Login/DHTNode issues"
+        echo -e "${GREEN}-------------------------------------------------${NC}"
+        echo -e "${CYAN}ℹ️ Press Ctrl+X to stop anytime${NC}"
     else
-        log_message "INFO" "No existing setup found. Starting fresh"
-        echo -e "${GREEN}✅ No existing setup found. Starting fresh...${NC}"
+        log_message "INFO" "No setup found. Starting fresh"
+        echo -e "${GREEN}✅ No Setup Found. Starting Fresh...${NC}"
         clone_repository
-        setup_python_env
+        setup . setup_python_env
         launch_rl_swarm
         exit 0
     fi
 
-    # Handle Menu Selection
-    read -p $'\e[1m➡️ Enter your choice (1-5): \e[0m' choice
+    read -p "${BOLD}${YELLOW}➡️ Select Option (1-5): ${NC}" choice
     case "$choice" in
         1) option_1; break ;;
         2) option_2; break ;;
         3) option_3; break ;;
         4) option_4; break ;;
         5) option_5; break ;;
-        *) log_message "ERROR" "Invalid choice: $choice"; echo -e "${RED}❌ Invalid choice. Try again.${NC}" ;;
+        *) log_message "ERROR" "Invalid choice: $choice"; echo -e "${RED}❌ Invalid Option!${NC}" ;;
     esac
 done
 
 # ----------------------------------------
-# Live Auto Backup (background, quiet)
+# Background Backup
 # ----------------------------------------
 (
     while true; do
         sleep 300
         backup_files
-        log_message "INFO" "Completed auto-backup cycle"
+        log_message "INFO" "Auto-backup completed"
     done
 ) &
 BACKGROUND_PID=$!
-log_message "INFO" "Started background backup process (PID: $BACKGROUND_PID)"
+log_message "INFO" "Started backup (PID: $BACKGROUND_PID)"
