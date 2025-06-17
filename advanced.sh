@@ -191,6 +191,11 @@ remove_swapfile() {
     fi
 }
 
+# Venv Check
+ensure_venv_installed() {
+    [ ! -d ".venv" ] && sudo apt update >/dev/null 2>&1 && sudo apt install python3.12-venv -y >/dev/null 2>&1
+}
+
 # Launch Function
 launch_rl_swarm() {
     log_message "INFO" "Launching rl-swarm"
@@ -244,6 +249,7 @@ option_1() {
     log_message "INFO" "Option 1: Auto-restart with existing files"
     pkill -f swarm.pem 2>/dev/null
     auto_fix
+    ensure_venv_installed
     setup_python_env
     backup_files
     while [ $STOP_REQUESTED -eq 0 ]; do
@@ -260,6 +266,7 @@ option_1() {
 option_2() {
     log_message "INFO" "Option 2: Run once with existing files"
     auto_fix
+    ensure_venv_installed
     setup_python_env
     backup_files
     restore_files
@@ -271,6 +278,7 @@ option_3() {
     log_message "INFO" "Option 3: Delete and start fresh"
     rm -rf "$SWARM_DIR"
     clone_repository
+    ensure_venv_installed
     setup_python_env
     run_fixall
     launch_rl_swarm
