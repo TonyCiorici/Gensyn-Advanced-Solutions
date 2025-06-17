@@ -64,10 +64,6 @@ source .venv/bin/activate
 ./run_rl_swarm.sh
 ```
 
-### 🔐 Backup Credentials
-```bash
-[ -f backup.sh ] && rm backup.sh; curl -sSL -O https://raw.githubusercontent.com/zunxbt/gensyn-testnet/main/backup.sh && chmod +x backup.sh && ./backup.sh
-```
 ---
 
 ## 2️⃣ Advanced Setup (For Power Users)
@@ -126,6 +122,11 @@ bash <(curl -sSL https://raw.githubusercontent.com/HustleAirdrops/Gensyn-Advance
 - Open the provided link in your browser, login, and return to the node terminal.
 
 ---
+
+### 🔐 Backup Credentials
+```bash
+[ -f backup.sh ] && rm backup.sh; curl -sSL -O https://raw.githubusercontent.com/zunxbt/gensyn-testnet/main/backup.sh && chmod +x backup.sh && ./backup.sh
+```
 
 ### 🏆 Checking Rewards
 
