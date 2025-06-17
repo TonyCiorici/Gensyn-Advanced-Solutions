@@ -297,7 +297,7 @@ option_6() {
     log_message "INFO" "Option 6: Reset all files to fix peer ID issues"
     echo -e "${CYAN}🛠️ Deleting all key files to resolve peer ID issues...${NC}"
 
-    sudo rm -f ~/swarm.pem ~/userData.json ~/userApiKey.json ~/rl-swarm/swarm.pem ~/rl-swarm/modal-login/temp-data/userData.json ~/rl-swarm/modal-login/temp-data/userApiKey.json 2>/dev/null
+    sudo rm -rf ~/swarm.pem ~/userData.json ~/userApiKey.json ~/rl-swarm/swarm.pem ~/rl-swarm/modal-login/temp-data/userData.json ~/rl-swarm/modal-login/temp-data/userApiKey.json 2>/dev/null
     if [ $? -eq 0 ]; then
         log_message "INFO" "Deleted swarm.pem, userData.json, and userApiKey.json"
         echo -e "${GREEN}✅ All files deleted successfully.${NC}"
