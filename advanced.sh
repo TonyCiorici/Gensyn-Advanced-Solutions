@@ -96,15 +96,12 @@ validate_environment() {
 # ----------------------------------------
 manage_swapfile() {
     if [ ! -f "$SWAP_FILE" ]; then
-        log_message "INFO" "Creating swapfile at $SWAP_FILE"
-        sudo fallocate -l 2G "$SWAP_FILE"
-        sudo chmod 600 "$SWAP_FILE"
-        sudo mkswap "$SWAP_FILE"
-        sudo swapon "$SWAP_FILE"
-        echo "$SWAP_FILE none swap sw 0 0" | sudo tee -a /etc/fstab
-        [ $? -eq 0 ] && log_message "INFO" "Swapfile created and enabled" || log_message "ERROR" "Failed to create swapfile"
-    else
-        log_message "INFO" "Swapfile already exists"
+        sudo fallocate -l 2G "$SWAP_FILE" >/dev/null 2>&1
+        sudo chmod 600 "$SWAP_FILE" >/dev/null 2>&1
+        sudo mkswap "$SWAP_FILE" >/dev/null 2>&1
+        sudo swapon "$SWAP_FILE" >/dev/null 2>&1
+        echo "$SWAP_FILE none swap sw 0 0" | sudo tee -a /etc/fstab >/dev/null 2>&1
+        [ $? -ne 0 ] && exit 1
     fi
 }
 
@@ -160,10 +157,11 @@ clone_repository() {
 # Python Environment Setup
 # ----------------------------------------
 setup_python_env() {
-    cd "$SWARM_DIR" || exit 1
-    [ ! -d ".venv" ] && python3 -m venv .venv 2>/dev/null || [ -d ".venv" ] || exit 1
+    log_message "INFO" "Setting up Python environment"
+    cd "$SWARM_DIR" || { log_message "ERROR" "Could not access $SWARM_DIR"; exit 1; }
+    [ ! -d ".venv" ] && python3 -m venv .venv 2>/dev/null && log_message "INFO" "Created virtual environment" || [ -d ".venv" ] || { log_message "ERROR" "Failed to create venv"; exit 1; }
     source .venv/bin/activate
-    [ -f "requirements.txt" ] && pip install -r requirements.txt >/dev/null 2>&1
+    [ -f "requirements.txt" ] && pip install -r requirements.txt >/dev/null 2>&1 && log_message "INFO" "Installed dependencies" || log_message "WARN" "Failed to install dependencies"
 }
 
 
