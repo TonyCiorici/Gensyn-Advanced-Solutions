@@ -36,12 +36,13 @@ read -p "👉 Enter your choice [1/2/3/4]: " version_choice
 # -------------------------------------
 if [[ "$version_choice" == "4" ]]; then
     echo -e "${YELLOW}📦 Starting Backup Process...${NC}"
-    [ -f backup.sh ] && rm backup.sh
-    curl -sSL -O https://raw.githubusercontent.com/zunxbt/gensyn-testnet/main/backup.sh
-    chmod +x backup.sh
-    ./backup.sh
-    echo -e "${GREEN}📝 Open all 3 backup links and save credentials safely.${NC}"
-    echo -e "${GREEN}✅ Backup process completed.${NC}"
+    bash -c "$(curl -fsSL https://raw.githubusercontent.com/zunxbt/gensyn-testnet/main/backup.sh)"
+    if [ $? -eq 0 ]; then
+        echo -e "${GREEN}📝 Open all 3 backup links and save credentials safely.${NC}"
+        echo -e "${GREEN}✅ Backup process completed.${NC}"
+    else
+        echo -e "${RED}❌ Backup script failed to run.${NC}"
+    fi
     exit 0
 fi
 
