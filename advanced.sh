@@ -277,6 +277,7 @@ option_2() {
 option_3() {
     log_message "INFO" "Option 3: Delete and start fresh"
     rm -rf "$SWARM_DIR"
+    rm -f ~/swarm.pem ~/userData.json ~/userApiKey.json
     clone_repository
     ensure_venv_installed
     setup_python_env
