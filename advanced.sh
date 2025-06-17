@@ -249,6 +249,7 @@ option_1() {
     log_message "INFO" "Option 1: Auto-restart with existing files"
     pkill -f swarm.pem 2>/dev/null
     auto_fix
+    run_fixall
     ensure_venv_installed
     setup_python_env
     backup_files
@@ -270,6 +271,7 @@ option_2() {
     setup_python_env
     backup_files
     restore_files
+    run_fixall
     pkill -f swarm.pem 2>/dev/null
     launch_rl_swarm
 }
