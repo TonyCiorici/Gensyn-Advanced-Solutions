@@ -21,7 +21,7 @@ All commands are copy-paste ready!
 Just run the following command in your terminal to launch the interactive setup menu:
 
 ```bash
-bash <(curl -s https://github.com/HustleAirdrops/Gensyn-Advanced-Solutions/raw/main/installation.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/HustleAirdrops/Gensyn-Advanced-Solutions/main/installation.sh)
 ```
 
 You'll see a menu like this:
