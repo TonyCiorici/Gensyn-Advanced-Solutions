@@ -2,28 +2,40 @@
 set -e
 
 echo "🚀 Starting Hustle Airdrops system setup and dependencies installation..."
+echo "=================================================="
 
 # -------------------------------------
-# 0. Menu for Version Selection
+# 0️⃣ Menu for Version Selection
 # -------------------------------------
-echo "======================================"
 echo "🌀 Hustle Airdrops - Setup Menu"
-echo "======================================"
+echo "=================================================="
 echo "1️⃣  Setup with LATEST version"
 echo "2️⃣  Setup with DOWNGRADED version (recommended for stability)"
 echo "3️⃣  Fix all issues (Dependencies + Known bugs only)"
-echo "======================================"
-read -p "👉 Enter your choice [1/2/3]: " version_choice
+echo "4️⃣  Backup Credentials only"
+echo "=================================================="
+read -p "👉 Enter your choice [1/2/3/4]: " version_choice
 
-if [[ "$version_choice" == "1" ]]; then
-    echo "🔧 You selected LATEST version."
-    USE_LATEST=true
-elif [[ "$version_choice" == "2" ]]; then
-    echo "📦 You selected DOWNGRADED version (specific commit)."
-    USE_LATEST=false
-elif [[ "$version_choice" == "3" ]]; then
-    echo "🛠 You selected FIX ALL mode (only dependencies and bug fixes)."
-    # Install dependencies & fixes only
+# -------------------------------------
+# 4️⃣ Backup Credentials Only
+# -------------------------------------
+if [[ "$version_choice" == "4" ]]; then
+    echo "📦 Starting Backup Process..."
+    [ -f backup.sh ] && rm backup.sh
+    curl -sSL -O https://raw.githubusercontent.com/zunxbt/gensyn-testnet/main/backup.sh
+    chmod +x backup.sh
+    ./backup.sh
+    echo "📝 After running, open all 3 links one by one and save your credentials safely."
+    echo "✅ Backup process completed."
+    exit 0
+fi
+
+# -------------------------------------
+# 3️⃣ Fix All Mode - Dependencies + Bugs
+# -------------------------------------
+if [[ "$version_choice" == "3" ]]; then
+    echo "🛠️ Running in FIX ALL mode (dependencies + fixes only)..."
+
     sudo apt update && sudo apt install -y \
         python3 python3-venv python3-pip \
         curl wget screen git lsof \
@@ -50,8 +62,20 @@ elif [[ "$version_choice" == "3" ]]; then
 
     # Fix script
     bash -c "$(curl -fsSL https://raw.githubusercontent.com/hustleairdrops/Gensyn-Advanced-Solutions/main/fixall.sh)"
+
     echo "✅ All issues fixed. You're ready to roll 🚀"
     exit 0
+fi
+
+# -------------------------------------
+# 1️⃣ or 2️⃣ Setup Modes
+# -------------------------------------
+if [[ "$version_choice" == "1" ]]; then
+    echo "🔧 You selected LATEST version."
+    USE_LATEST=true
+elif [[ "$version_choice" == "2" ]]; then
+    echo "📦 You selected DOWNGRADED version (recommended for stability)."
+    USE_LATEST=false
 else
     echo "❌ Invalid choice. Exiting."
     exit 1
@@ -113,7 +137,7 @@ mkdir -p "$BACKUP_DIR"
 # 7. Backup Existing swarm.pem (if present)
 # -------------------------------------
 if [ -f "$FOLDER/swarm.pem" ]; then
-    echo "Old user detected. Backing up existing swarm.pem..."
+    echo "🔒 Old user detected. Backing up existing swarm.pem..."
     sudo cp "$FOLDER/swarm.pem" "$SAFE_FILE"
     sudo cp "$FOLDER/swarm.pem" "$BACKUP_FILE"
     sudo chown $(whoami):$(whoami) "$SAFE_FILE" "$BACKUP_FILE"
