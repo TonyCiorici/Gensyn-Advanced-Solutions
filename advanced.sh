@@ -18,7 +18,6 @@ NODE_PID_FILE="$HOME/.node_pid"
 SWAP_FILE="/swapfile"
 
 # Global Variables
-BACKGROUND_PID=0
 STOP_REQUESTED=0
 NODE_PID=0
 
@@ -86,39 +85,17 @@ manage_swapfile() {
     fi
 }
 
-# Backup Function
-backup_files() {
-    mkdir -p "$TEMP_DATA_PATH" "$HOME_DIR"
-    chmod 700 "$TEMP_DATA_PATH" "$HOME_DIR"
-    for src in "$SWARM_DIR/swarm.pem" "$TEMP_DATA_PATH/userData.json" "$TEMP_DATA_PATH/userApiKey.json"; do
-        dest="$HOME_DIR/$(basename "$src")"
-        if [ -f "$src" ] && [ ! -f "$dest" ]; then
-            cp -f "$src" "$dest" 2>/dev/null
-            [ $? -eq 0 ] && chmod 600 "$dest"
+# Modify run_rl_swarm.sh if not already modified
+modify_run_script() {
+    if [ -f "$SWARM_DIR/run_rl_swarm.sh" ]; then
+        if ! grep -q 'if \[ "\$KEEP_TEMP_DATA" != "true" \]; then' "$SWARM_DIR/run_rl_swarm.sh"; then
+            perl -i -pe 's|rm -r \$ROOT_DIR/modal-login/temp-data/\*.json 2> /dev/null \|\| true|if [ "\$KEEP_TEMP_DATA" != "true" ]; then\n    rm -r \$ROOT_DIR/modal-login/temp-data/\*.json 2> /dev/null || true\nfi|' "$SWARM_DIR/run_rl_swarm.sh"
+            log_message "INFO" "Modified run_rl_swarm.sh to conditionally delete temp data"
+        else
+            log_message "INFO" "run_rl_swarm.sh already modified"
         fi
-    done
+    fi
 }
-
-
-# Restore Function
-restore_files() {
-    mkdir -p "$TEMP_DATA_PATH"
-    chmod 700 "$TEMP_DATA_PATH"
-    for src in "$HOME_DIR/swarm.pem" "$HOME_DIR/userData.json" "$HOME_DIR/userApiKey.json"; do
-        if [ -f "$src" ]; then
-            if [[ "$(basename "$src")" == "swarm.pem" ]]; then
-                dest="$SWARM_DIR/swarm.pem"
-            else
-                dest="$TEMP_DATA_PATH/$(basename "$src")"
-            fi
-            if [ ! -f "$dest" ]; then
-                sudo cp -f "$src" "$dest" 2>/dev/null
-                [ $? -eq 0 ] && chmod 600 "$dest"
-            fi
-        fi
-    done
-}
-
 
 # Clone Repository
 clone_repository() {
@@ -128,6 +105,7 @@ clone_repository() {
     if [ $? -eq 0 ]; then
         log_message "INFO" "Repository cloned"
         chmod -R 700 "$SWARM_DIR"
+        modify_run_script
     else
         log_message "ERROR" "Failed to clone repository"
         exit 1
@@ -190,13 +168,11 @@ $PARAM
 $PUSH
 EOF
         local exit_code=$?
-        backup_files
         return $exit_code
     else
         cd "$SWARM_DIR" && source .venv/bin/activate
         ./run_rl_swarm.sh
         local exit_code=$?
-        backup_files
         return $exit_code
     fi
 }
@@ -206,11 +182,11 @@ auto_fix() {
     log_message "INFO" "Running auto-fix"
     [ ! -d "$SWARM_DIR" ] && clone_repository
     [ ! -f "$SWARM_DIR/run_rl_swarm.sh" ] && clone_repository
+    modify_run_script
     if [ ! -d "$SWARM_DIR/.venv" ] || [ ! -f "$SWARM_DIR/.venv/bin/activate" ]; then
         rm -rf "$SWARM_DIR/.venv"
         setup_python_env
     fi
-    restore_files
     manage_swapfile
     log_message "INFO" "Auto-fix completed"
 }
@@ -225,14 +201,14 @@ run_fixall() {
 # Menu Options
 option_1() {
     log_message "INFO" "Option 1: Auto-restart with existing files"
+    export KEEP_TEMP_DATA=true
+    modify_run_script
     pkill -f swarm.pem 2>/dev/null
     auto_fix
     run_fixall
     ensure_venv_installed
     setup_python_env
-    backup_files
     while [ $STOP_REQUESTED -eq 0 ]; do
-        restore_files
         pkill -f swarm.pem 2>/dev/null
         launch_rl_swarm
         log_message "WARN" "rl-swarm exited. Restarting in 1s..."
@@ -244,11 +220,11 @@ option_1() {
 
 option_2() {
     log_message "INFO" "Option 2: Run once with existing files"
+    export KEEP_TEMP_DATA=true
+    modify_run_script
     auto_fix
     ensure_venv_installed
     setup_python_env
-    backup_files
-    restore_files
     run_fixall
     pkill -f swarm.pem 2>/dev/null
     launch_rl_swarm
@@ -259,10 +235,20 @@ option_3() {
     rm -rf "$SWARM_DIR"
     rm -f ~/swarm.pem ~/userData.json ~/userApiKey.json
     clone_repository
+    modify_run_script
     ensure_venv_installed
     setup_python_env
     run_fixall
-    launch_rl_swarm
+    echo -e "${YELLOW}⚠️ Please place your swarm.pem in $HOME_DIR and press Enter to continue.${NC}"
+    read -p ""
+    if [ -f "$HOME_DIR/swarm.pem" ]; then
+        cp "$HOME_DIR/swarm.pem" "$SWARM_DIR/swarm.pem"
+        chmod 600 "$SWARM_DIR/swarm.pem"
+        launch_rl_swarm
+    else
+        log_message "ERROR" "swarm.pem not found in $HOME_DIR"
+        echo -e "${RED}❌ swarm.pem not found!${NC}"
+    fi
 }
 
 option_4() {
@@ -296,7 +282,6 @@ option_5() {
 option_6() {
     log_message "INFO" "Option 6: Reset all files to fix peer ID issues"
     echo -e "${CYAN}🛠️ Deleting all key files to resolve peer ID issues...${NC}"
-
     sudo rm -rf ~/swarm.pem ~/userData.json ~/userApiKey.json ~/rl-swarm/swarm.pem ~/rl-swarm/modal-login/temp-data/userData.json ~/rl-swarm/modal-login/temp-data/userApiKey.json 2>/dev/null
     if [ $? -eq 0 ]; then
         log_message "INFO" "Deleted swarm.pem, userData.json, and userApiKey.json"
@@ -305,7 +290,6 @@ option_6() {
         log_message "ERROR" "Failed to delete some files"
         echo -e "${RED}❌ Failed to delete some files. Check logs.${NC}"
     fi
-
     echo -e "${YELLOW}⚠️ Please import swarm.pem into $HOME_DIR${NC}"
     echo -e "${YELLOW}➡️ Then restart the node.${NC}"
     exit 0
@@ -315,7 +299,7 @@ option_6() {
 display_logo() {
     echo -e "${CYAN}${BOLD}"
     echo "┌───────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐"
-    echo "│  ██╗░░██╗██╗░░░██╗░██████╗████████╗██╗░░░░░███████╗  ░█████╗░██╗██████╗░██████╗░██████╗░░█████╗░██████╗░░██████╗  │"
+    echo "│  ██╗░░██╗██╗░░░██║░██████╗████████╗██╗░░░░░███████╗  ░█████╗░██╗██████╗░██████░██╗██████╗░░█████╗░██████╗░░██████╗  │"
     echo "│  ██║░░██║██║░░░██║██╔════╝╚══██╔══╝██║░░░░░██╔════╝  ██╔══██╗██║██╔══██╗██╔══██╗██╔══██╗██╔══██╗██╔══██╗██╔════╝  │"
     echo "│  ███████║██║░░░██║╚█████╗░░░░██║░░░██║░░░░░█████╗░░  ███████║██║██╔══██╗██║░░██║██████╔╝██║░░██║██████╔╝╚█████╗░  │"
     echo "│  ██╔══██║██║░░░██║░╚═══██╗░░░██║░░░██║░░░░░██╔══╝░░  ██╔══██║██║██╔══██╗██║░░██║██╔══██╗██║░░██║██╔═══╝░░╚═══██╗  │"
@@ -331,7 +315,6 @@ display_logo() {
 stop_script() {
     log_message "INFO" "Stopping script (Ctrl+X)"
     STOP_REQUESTED=1
-    [ $BACKGROUND_PID -ne 0 ] && kill $BACKGROUND_PID 2>/dev/null && log_message "INFO" "Terminated backup (PID: $BACKGROUND_PID)"
     [ $NODE_PID -ne 0 ] && kill $NODE_PID 2>/dev/null && log_message "INFO" "Terminated node (PID: $NODE_PID)"
     echo -e "${GREEN}✅ Stopped Gracefully${NC}"
     remove_swapfile
@@ -350,7 +333,7 @@ while true; do
     validate_environment
     manage_swapfile
 
-    if [ -f "$HOME_DIR/swarm.pem" ] || [ -f "$HOME_DIR/userData.json" ] || [ -f "$HOME_DIR/userApiKey.json" ] || [ -d "$SWARM_DIR" ]; then
+    if [ -d "$SWARM_DIR" ] || [ -f "$HOME_DIR/swarm.pem" ] || [ -f "$HOME_DIR/userData.json" ] || [ -f "$HOME_DIR/userApiKey.json" ]; then
         echo -e "${YELLOW}${BOLD}⚠️ Existing Setup Detected!${NC}"
         echo -e "${GREEN}-------------------------------------------------${NC}"
         echo "  ||   ${BOLD}${CYAN}1️⃣️ Auto-Restart Mode${NC} - Run with existing files, restarts on crash"
@@ -365,6 +348,7 @@ while true; do
         log_message "INFO" "No setup found. Starting fresh"
         echo -e "${GREEN}✅ No Setup Found. Starting Fresh...${NC}"
         clone_repository
+        modify_run_script
         setup_python_env
         run_fixall
         launch_rl_swarm
@@ -382,14 +366,3 @@ while true; do
         *) log_message "ERROR" "Invalid choice: $choice"; echo -e "${RED}❌ Invalid Option!${NC}" ;;
     esac
 done
-
-# Background Backup
-(
-    while true; do
-        sleep 300
-        backup_files
-        log_message "INFO" "Auto-backup completed"
-    done
-) &
-BACKGROUND_PID=$!
-log_message "INFO" "Started backup (PID: $BACKGROUND_PID)"
