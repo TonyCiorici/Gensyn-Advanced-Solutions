@@ -313,6 +313,24 @@ option_5() {
     [ $? -eq 0 ] && echo -e "${GREEN}✅ Errors Fixed!${NC}" || echo -e "${RED}❌ Fix Failed. Check Logs.${NC}"
 }
 
+option_6() {
+    log_message "INFO" "Option 6: Reset all files to fix peer ID issues"
+    echo -e "${CYAN}🛠️ Deleting all key files to resolve peer ID issues...${NC}"
+
+    sudo rm -f ~/swarm.pem ~/userData.json ~/userApiKey.json ~/rl-swarm/swarm.pem ~/rl-swarm/modal-login/temp-data/userData.json ~/rl-swarm/modal-login/temp-data/userApiKey.json 2>/dev/null
+    if [ $? -eq 0 ]; then
+        log_message "INFO" "Deleted swarm.pem, userData.json, and userApiKey.json"
+        echo -e "${GREEN}✅ All files deleted successfully.${NC}"
+    else
+        log_message "ERROR" "Failed to delete some files"
+        echo -e "${RED}❌ Failed to delete some files. Check logs.${NC}"
+    fi
+
+    echo -e "${YELLOW}⚠️ Please import swarm.pem into $HOME_DIR${NC}"
+    echo -e "${YELLOW}➡️ Then restart the node.${NC}"
+    exit 0
+}
+
 # Display Logo
 display_logo() {
     echo -e "${CYAN}${BOLD}"
@@ -360,6 +378,7 @@ while true; do
         echo "  ||   ${BOLD}${CYAN}3️⃣ Fresh Start${NC} - Delete everything and start anew"
         echo "  ||   ${BOLD}${CYAN}4️⃣ Update Config${NC} - Change Swarm type and Parameter count"
         echo "  ||   ${BOLD}${CYAN}5️⃣ Fix Errors${NC} - Resolve BF16/Login/DHTNode issues"
+        echo "  ||   ${BOLD}${CYAN}6️⃣ Fix Peer ID Issues${NC} - Delete all key files and start fresh with new keys"
         echo -e "${GREEN}-------------------------------------------------${NC}"
         echo -e "${CYAN}ℹ️ Press Ctrl+X to stop anytime${NC}"
     else
@@ -372,13 +391,14 @@ while true; do
         exit 0
     fi
 
-    read -p "${BOLD}${YELLOW}➡️ Select Option (1-5): ${NC}" choice
+    read -p "${BOLD}${YELLOW}➡️ Select Option (1-6): ${NC}" choice
     case "$choice" in
         1) option_1; break ;;
         2) option_2; break ;;
         3) option_3; break ;;
         4) option_4; break ;;
         5) option_5; break ;;
+        6) option_6; break ;;
         *) log_message "ERROR" "Invalid choice: $choice"; echo -e "${RED}❌ Invalid Option!${NC}" ;;
     esac
 done
