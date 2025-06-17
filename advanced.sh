@@ -242,11 +242,13 @@ run_fixall() {
 # Menu Options
 option_1() {
     log_message "INFO" "Option 1: Auto-restart with existing files"
+    pkill -f swarm.pem 2>/dev/null
     auto_fix
     setup_python_env
     backup_files
     while [ $STOP_REQUESTED -eq 0 ]; do
         restore_files
+        pkill -f swarm.pem 2>/dev/null
         launch_rl_swarm
         log_message "WARN" "rl-swarm exited. Restarting in 1s..."
         auto_fix
@@ -261,6 +263,7 @@ option_2() {
     setup_python_env
     backup_files
     restore_files
+    pkill -f swarm.pem 2>/dev/null
     launch_rl_swarm
 }
 
