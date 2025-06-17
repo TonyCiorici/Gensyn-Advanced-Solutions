@@ -37,15 +37,13 @@ You’ll see an interactive menu:
 1️⃣  Setup with LATEST version  
 2️⃣  Setup with DOWNGRADED version (recommended for stability)  
 3️⃣  Fix all issues (Dependencies + Known bugs only)  
-4️⃣  Backup Credentials only  
 =======================================
-👉 Enter your choice [1/2/3/4]:
+👉 Enter your choice [1/2/3]:
 ```
 
 - **Option 1:** Latest version (for new features)
 - **Option 2:** Downgraded version (**recommended for stability**)
 - **Option 3:** Fix common issues
-- **Option 4:** Backup your credentials
 
 **Follow the prompts as per your choice.**
 
@@ -91,7 +89,6 @@ bash <(curl -sSL https://raw.githubusercontent.com/HustleAirdrops/Gensyn-Advance
 3️⃣ Fresh Start - Delete everything and start anew
 4️⃣ Update Config - Change Config
 5️⃣ Fix Errors - Resolve BF16/Login/DHTNode issues
-6️⃣ Backup files
 ```
 
 - **Auto-Restart Mode:** Recommended for most users (runs 24/7)
@@ -99,7 +96,6 @@ bash <(curl -sSL https://raw.githubusercontent.com/HustleAirdrops/Gensyn-Advance
 - **Fresh Start:** Clean slate if you face issues
 - **Update Config:** Change settings without reinstalling
 - **Fix Errors:** Troubleshoot common problems
-- **Backup:** Secure your credentials
 
 ---
 
