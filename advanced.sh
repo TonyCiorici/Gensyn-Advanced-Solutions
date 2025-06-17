@@ -236,7 +236,7 @@ run_fixall() {
         touch "$SWARM_DIR/.fixall_done"
         log_message "INFO" "fixall.sh executed successfully"
     else
-        log dreamy "ERROR" "Failed to execute fixall.sh"
+        log_message "ERROR" "Failed to execute fixall.sh"
     fi
 }
 
