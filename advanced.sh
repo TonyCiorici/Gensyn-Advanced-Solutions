@@ -175,11 +175,7 @@ setup_python_env() {
         pip install -r requirements.txt >/dev/null 2>&1
         if [ $? -eq 0 ]; then
             log_message "INFO" "Installed dependencies"
-        else
-            log_message "WARN" "Failed to install dependencies from requirements.txt"
         fi
-    else
-        log_message "WARN" "requirements.txt not found, skipping dependency installation"
     fi
 }
 
