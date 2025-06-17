@@ -302,11 +302,6 @@ option_5() {
     [ $? -eq 0 ] && echo -e "${GREEN}✅ Errors Fixed!${NC}" || echo -e "${RED}❌ Fix Failed. Check Logs.${NC}"
 }
 
-option_6() {
-    echo -e "${YELLOW}📦 Running Backup Script ...${NC}"
-    bash -c "$(curl -fsSL https://raw.githubusercontent.com/zunxbt/gensyn-testnet/main/backup.sh)"
-}
-
 
 # ----------------------------------------
 # Display Logo (OP Design)
@@ -361,7 +356,6 @@ while true; do
         echo "  ||   ${BOLD}${CYAN}3️⃣ Fresh Start${NC} - Delete everything and start anew"
         echo "  ||   ${BOLD}${CYAN}4️⃣ Update Config${NC} - Change Swarm type and Parameter count"
         echo "  ||   ${BOLD}${CYAN}5️⃣ Fix Errors${NC} - Resolve BF16/Login/DHTNode issues"
-        echo "  ||   ${BOLD}${CYAN}6️⃣ Backup files${NC} - Backup Important Files"
         echo -e "${GREEN}-------------------------------------------------${NC}"
         echo -e "${CYAN}ℹ️ Press Ctrl+X to stop anytime${NC}"
     else
@@ -381,7 +375,6 @@ while true; do
         3) option_3; break ;;
         4) option_4; break ;;
         5) option_5; break ;;
-        6) option_6; break ;;
         *) log_message "ERROR" "Invalid choice: $choice"; echo -e "${RED}❌ Invalid Option!${NC}" ;;
     esac
 done
