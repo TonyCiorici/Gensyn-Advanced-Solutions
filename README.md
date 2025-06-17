@@ -1,30 +1,31 @@
-# 🚀 Gensyn RL-Swarm Node Setup Guide + All Solutions
+# 🌀 Gensyn Node Setup Guide
 
-Easily set up and run your Gensyn RL-Swarm node on **Linux/WSL**.  
-All commands are copy-paste ready!
-
----
-
-> **Want a more advanced setup?**  
-> [Click here for the Advanced Guide](./Advanced.md)  
-> - No need to login again and again when restarting  
-> - No need to add inputs like Y, A, 7, N  
-> - Auto-restart if terminated  
-> - Almost all issues fixed  
-> - Try this for a smoother experience!
+Welcome! This guide will help you set up your Gensyn node step by step. There are **two main setup methods**: a **Simple Setup** for beginners and an **Advanced Setup** for experienced users. The final section covers login, rewards, troubleshooting, and support.
 
 ---
 
-## 🌀 Quick Start
+## 📦 Overview
 
-**No need to manually clone any installation files!**  
-Just run the following command in your terminal to launch the interactive setup menu:
+- **Simple Setup:** Fastest way to get started, minimal manual steps.
+- **Advanced Setup:** More control, automation, and troubleshooting options.
+- **Extras:** Login help, rewards, and support resources.
+
+---
+
+## 1️⃣ Simple Setup (Beginner Friendly)
+
+### 🚀 Quick Start
+
+No need to manually download or clone files!  
+Just run this command in your terminal:
 
 ```bash
 bash <(curl -fsSL https://raw.githubusercontent.com/HustleAirdrops/Gensyn-Advanced-Solutions/main/installation.sh)
 ```
 
-You'll see a menu like this:
+### 📝 What Happens Next?
+
+You’ll see an interactive menu:
 
 ```
 🌀 Hustle Airdrops - Setup Menu
@@ -37,31 +38,16 @@ You'll see a menu like this:
 👉 Enter your choice [1/2/3/4]:
 ```
 
-Choose the option that fits your needs and follow the prompts.
+- **Option 1:** Latest version (for new features)
+- **Option 2:** Downgraded version (**recommended for stability**)
+- **Option 3:** Fix common issues
+- **Option 4:** Backup your credentials
 
----
+**Follow the prompts as per your choice.**
 
-## 🌐 Login Instructions
+### 🔄 Restarting Your Node
 
-### Local PC
-
-- A web pop-up will appear automatically.
-- If not, open [http://localhost:3000/](http://localhost:3000/) in your browser.
-- Login with your email, enter the OTP, and return to your terminal.
-
-### VPS
-
-1. Open a **new terminal/tab** and run:
-    ```bash
-    cloudflared tunnel --url http://localhost:3000
-    ```
-2. Open the provided link in your browser, login, then return to the node terminal.
-
----
-
-## 🔄 Next Day Start
-
-To restart your node the next day:
+To restart your node later, use:
 
 ```bash
 cd rl-swarm
@@ -74,30 +60,101 @@ source .venv/bin/activate
 ./run_rl_swarm.sh
 ```
 
+### 🔐 Backup Credentials
+```bash
+[ -f backup.sh ] && rm backup.sh; curl -sSL -O https://raw.githubusercontent.com/zunxbt/gensyn-testnet/main/backup.sh && chmod +x backup.sh && ./backup.sh
+```
 ---
 
-## 🏆 Check Rewards
+## 2️⃣ Advanced Setup (For Power Users)
 
-- Visit [@GensynReward_bot](https://t.me/GensynReward_bot) on Telegram.
-- Send `/add` and then your **Peer ID** for updates.
+### 💡 Why Use Advanced?
+
+- **No repeated logins** — stay connected
+- **No manual inputs** — fully automated
+- **Auto-restart** — node restarts if it crashes
+- **Self-healing** — fixes most issues automatically
+
+### ⚡ One-Line Setup
+
+Run this command for advanced options:
+
+```bash
+bash <(curl -sSL https://raw.githubusercontent.com/HustleAirdrops/Gensyn-Advanced-Solutions/main/advanced.sh)
+```
+
+### 🛠️ Advanced Menu Options
+
+```
+1️⃣ Auto-Restart Mode - Run with existing files, restarts on crash
+2️⃣ Single Run - Run once with existing files
+3️⃣ Fresh Start - Delete everything and start anew
+4️⃣ Update Config - Change Config
+5️⃣ Fix Errors - Resolve BF16/Login/DHTNode issues
+6️⃣ Backup files
+```
+
+- **Auto-Restart Mode:** Recommended for most users (runs 24/7)
+- **Single Run:** For one-time execution
+- **Fresh Start:** Clean slate if you face issues
+- **Update Config:** Change settings without reinstalling
+- **Fix Errors:** Troubleshoot common problems
+- **Backup:** Secure your credentials
 
 ---
 
-## ⚠️ Note
+## 3️⃣ Login, Rewards & Support
 
-If you see  
-`0x0000000000000000000000000000000000000000`  
-in the **Connected EOA Address** section, your contribution is **not** being recorded.
+### 🌐 Login Instructions
 
-- Delete the existing `swarm.pem` file.
-- Start again with a new email.
+#### On Local PC
+
+- A browser window should open automatically.
+- If not, visit [http://localhost:3000/](http://localhost:3000/) manually.
+- Login with your email, enter the OTP, and return to your terminal.
+
+#### On VPS/Server
+
+- In a new terminal/tab, run:
+    ```bash
+    cloudflared tunnel --url http://localhost:3000
+    ```
+- Open the provided link in your browser, login, and return to the node terminal.
 
 ---
 
-## 💬 Need Help?
+### 🏆 Checking Rewards
 
-- Reach out: [@Legend_Aashish](https://t.me/Legend_Aashish)
-- 📺 All guides, videos & updates: [@Hustle_Airdrops](https://t.me/Hustle_Airdrops)
-- 🚀 Stay ahead — join the channel now!
+- Go to [@GensynReward_bot](https://t.me/GensynReward_bot) on Telegram.
+- Send `/add` and your Peer ID to track rewards.
 
---- 
+**Important:**  
+If you see `0x0000000000000000000000000000000000000000` as your EOA address, your work is **not** being recorded.
+
+- Delete the `swarm.pem` file.
+- Restart setup with a new email.
+
+---
+
+### 💬 Need Help?
+
+- **Direct Support:** [@Legend_Aashish](https://t.me/Legend_Aashish)
+- **Guides & Updates:** [@Hustle_Airdrops](https://t.me/Hustle_Airdrops)
+- **Stay updated — join the channel!**
+
+---
+
+## ❓ FAQ & Troubleshooting
+
+For frequently asked questions and troubleshooting steps, **please refer to our detailed guide:**  
+👉 [Gensyn FAQ & Troubleshooting Guide](./gensyn-faq-troubleshooting.md)
+
+---
+
+## ✅ Summary
+
+- **Simple Setup:** Fast, minimal steps — best for most users.
+- **Advanced Setup:** More control, automation, and troubleshooting.
+- **Check rewards and get support if needed.**
+
+**Choose the method that fits your comfort level. Follow the steps, and your Gensyn node will be running smoothly!** 
