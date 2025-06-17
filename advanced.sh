@@ -1,11 +1,6 @@
 #!/bin/bash
 
-# Enable debug mode for tracing (remove in production)
-# set -x
-
-# ----------------------------------------
-# Styling with tput (No raw escape codes)
-# ----------------------------------------
+# Styling with tput
 BOLD=$(tput bold)
 RED=$(tput setaf 1)
 GREEN=$(tput setaf 2)
@@ -13,9 +8,7 @@ YELLOW=$(tput setaf 3)
 CYAN=$(tput setaf 6)
 NC=$(tput sgr0)
 
-# ----------------------------------------
 # Paths
-# ----------------------------------------
 SWARM_DIR="$HOME/rl-swarm"
 CONFIG_FILE="$SWARM_DIR/.swarm_config"
 TEMP_DATA_PATH="$SWARM_DIR/modal-login/temp-data"
@@ -24,16 +17,12 @@ LOG_FILE="$HOME/swarm_log.txt"
 NODE_PID_FILE="$HOME/.node_pid"
 SWAP_FILE="/swapfile"
 
-# ----------------------------------------
 # Global Variables
-# ----------------------------------------
 BACKGROUND_PID=0
 STOP_REQUESTED=0
 NODE_PID=0
 
-# ----------------------------------------
 # Logging Function
-# ----------------------------------------
 log_message() {
     local level="$1"
     local message="$2"
@@ -53,11 +42,10 @@ log_message "INFO" "Starting GENSYN RL-SWARM LAUNCHER at $(date)"
 # Change to home directory
 cd "$HOME" || { log_message "ERROR" "Could not access $HOME. Exiting."; exit 1; }
 
-# ----------------------------------------
 # Default Config
-# ----------------------------------------
 create_default_config() {
     log_message "INFO" "Creating default config at $CONFIG_FILE"
+    mkdir -p "$SWARM_DIR"
     cat <<EOF > "$CONFIG_FILE"
 TESTNET=Y
 SWARM=A
@@ -68,14 +56,9 @@ EOF
     [ $? -eq 0 ] && log_message "INFO" "Default config created" || log_message "ERROR" "Failed to create default config"
 }
 
-if [ ! -f "$CONFIG_FILE" ]; then
-    mkdir -p "$SWARM_DIR"
-    create_default_config
-fi
+[ ! -f "$CONFIG_FILE" ] && create_default_config
 
-# ----------------------------------------
 # Install and Validate Environment
-# ----------------------------------------
 validate_environment() {
     log_message "INFO" "Validating and installing environment dependencies"
     local missing_deps=()
@@ -91,9 +74,7 @@ validate_environment() {
     log_message "INFO" "Environment validated"
 }
 
-# ----------------------------------------
 # Swapfile Management
-# ----------------------------------------
 manage_swapfile() {
     if [ ! -f "$SWAP_FILE" ]; then
         sudo fallocate -l 2G "$SWAP_FILE" >/dev/null 2>&1
@@ -101,13 +82,11 @@ manage_swapfile() {
         sudo mkswap "$SWAP_FILE" >/dev/null 2>&1
         sudo swapon "$SWAP_FILE" >/dev/null 2>&1
         echo "$SWAP_FILE none swap sw 0 0" | sudo tee -a /etc/fstab >/dev/null 2>&1
-        [ $? -ne 0 ] && exit 1
+        [ $? -ne 0 ] && log_message "WARN" "Failed to enable swapfile"
     fi
 }
 
-# ----------------------------------------
 # Backup Function
-# ----------------------------------------
 backup_files() {
     log_message "INFO" "Backing up files to $HOME_DIR"
     mkdir -p "$TEMP_DATA_PATH" "$HOME_DIR"
@@ -116,15 +95,22 @@ backup_files() {
     for src in "$SWARM_DIR/swarm.pem" "$TEMP_DATA_PATH/userData.json" "$TEMP_DATA_PATH/userApiKey.json"; do
         dest="$HOME_DIR/$(basename "$src")"
         if [ -f "$src" ] && [ ! -f "$dest" ]; then
-            cp -f "$src" "$dest" 2>/dev/null && chmod 600 "$dest" && ((copied++)) && log_message "INFO" "Backed up $(basename "$src")" || log_message "ERROR" "Backup failed for $(basename "$src")"
+            cp -f "$src" "$dest" 2>/dev/null
+            if [ $? -eq 0 ]; then
+                chmod 600 "$dest"
+                ((copied++))
+                log_message "INFO" "Backed up $(basename "$src")"
+            else
+                log_message "ERROR" "Backup failed for $(basename "$src")"
+            fi
+        elif [ ! -f "$src" ]; then
+            log_message "WARN" "Source file $src does not exist, skipping backup"
         fi
     done
     [ $copied -gt 0 ] && log_message "INFO" "Backed up $copied file(s)"
 }
 
-# ----------------------------------------
 # Restore Function
-# ----------------------------------------
 restore_files() {
     log_message "INFO" "Restoring files to $SWARM_DIR"
     mkdir -p "$TEMP_DATA_PATH"
@@ -132,59 +118,84 @@ restore_files() {
     local restored=0
     for src in "$HOME_DIR/swarm.pem" "$HOME_DIR/userData.json" "$HOME_DIR/userApiKey.json"; do
         if [ -f "$src" ]; then
-            dest="$SWARM_DIR/$(basename "$src")"
-            if [[ "$(basename "$src")" =~ (userData|userApiKey)\.json ]]; then dest="$TEMP_DATA_PATH/$(basename "$src")"; fi
-            if [ ! -f "$dest" ]; then
-                cp -f "$src" "$dest" 2>/dev/null && chmod 600 "$dest" && ((restored++)) && log_message "INFO" "Restored $(basename "$src")" || log_message "ERROR" "Restore failed for $(basename "$src")"
+            if [[ "$(basename "$src")" == "swarm.pem" ]]; then
+                dest="$SWARM_DIR/swarm.pem"
+            else
+                dest="$TEMP_DATA_PATH/$(basename "$src")"
             fi
+            if [ ! -f "$dest" ]; then
+                cp -f "$src" "$dest" 2>/dev/null
+                if [ $? -eq 0 ]; then
+                    chmod 600 "$dest"
+                    ((restored++))
+                    log_message "INFO" "Restored $(basename "$src")"
+                else
+                    log_message "ERROR" "Restore failed for $(basename "$src")"
+                fi
+            else
+                log_message "INFO" "File $dest already exists, skipping restore"
+            fi
+        else
+            log_message "WARN" "Backup file $src does not exist, cannot restore"
         fi
     done
     [ $restored -gt 0 ] && log_message "INFO" "Restored $restored file(s)"
 }
 
-# ----------------------------------------
 # Clone Repository
-# ----------------------------------------
 clone_repository() {
     log_message "INFO" "Cloning rl-swarm to $SWARM_DIR"
     rm -rf "$SWARM_DIR" 2>/dev/null
-    git clone https://github.com/gensyn-ai/rl-swarm.git "$SWARM_DIR" > /dev/null 2>&1
-    [ $? -eq 0 ] && log_message "INFO" "Repository cloned" && chmod -R 700 "$SWARM_DIR" || { log_message "ERROR" "Failed to clone repository"; exit 1; }
+    git clone https://github.com/gensyn-ai/rl-swarm.git "$SWARM_DIR" >/dev/null 2>&1
+    if [ $? -eq 0 ]; then
+        log_message "INFO" "Repository cloned"
+        chmod -R 700 "$SWARM_DIR"
+    else
+        log_message "ERROR" "Failed to clone repository"
+        exit 1
+    fi
     create_default_config
 }
 
-# ----------------------------------------
 # Python Environment Setup
-# ----------------------------------------
 setup_python_env() {
     log_message "INFO" "Setting up Python environment"
     cd "$SWARM_DIR" || { log_message "ERROR" "Could not access $SWARM_DIR"; exit 1; }
-    [ ! -d ".venv" ] && python3 -m venv .venv 2>/dev/null && log_message "INFO" "Created virtual environment" || [ -d ".venv" ] || { log_message "ERROR" "Failed to create venv"; exit 1; }
+    if [ ! -d ".venv" ]; then
+        python3 -m venv .venv 2>/dev/null
+        if [ $? -eq 0 ]; then
+            log_message "INFO" "Created virtual environment"
+        else
+            log_message "ERROR" "Failed to create venv"
+            exit 1
+        fi
+    fi
     source .venv/bin/activate
-    [ -f "requirements.txt" ] && pip install -r requirements.txt >/dev/null 2>&1 && log_message "INFO" "Installed dependencies" || log_message "WARN" "Failed to install dependencies"
+    if [ -f "requirements.txt" ]; then
+        pip install -r requirements.txt >/dev/null 2>&1
+        if [ $? -eq 0 ]; then
+            log_message "INFO" "Installed dependencies"
+        else
+            log_message "WARN" "Failed to install dependencies from requirements.txt"
+        fi
+    else
+        log_message "WARN" "requirements.txt not found, skipping dependency installation"
+    fi
 }
 
-
-# ----------------------------------------
 # Remove Swapfile
-# ----------------------------------------
 remove_swapfile() {
     log_message "INFO" "Removing swapfile at $SWAP_FILE"
     if [ -f "$SWAP_FILE" ]; then
-        sudo swapoff "$SWAP_FILE" 2>/dev/null
-        [ $? -eq 0 ] && log_message "INFO" "Swapfile disabled" || log_message "WARN" "Failed to disable swapfile"
-        sudo rm -f "$SWAP_FILE" 2>/dev/null
-        [ $? -eq 0 ] && log_message "INFO" "Swapfile removed" || log_message "ERROR" "Failed to remove swapfile"
-        sudo sed -i "\|$SWAP_FILE|d" /etc/fstab
-        [ $? -eq 0 ] && log_message "INFO" "Removed swapfile entry from /etc/fstab" || log_message "WARN" "Failed to remove swapfile entry from /etc/fstab"
+        sudo swapoff "$SWAP_FILE" 2>/dev/null && log_message "INFO" "Swapfile disabled" || log_message "WARN" "Failed to disable swapfile"
+        sudo rm -f "$SWAP_FILE" 2>/dev/null && log_message "INFO" "Swapfile removed" || log_message "ERROR" "Failed to remove swapfile"
+        sudo sed -i "\|$SWAP_FILE|d" /etc/fstab && log_message "INFO" "Removed swapfile entry from /etc/fstab" || log_message "WARN" "Failed to remove swapfile entry from /etc/fstab"
     else
         log_message "INFO" "No swapfile found"
     fi
 }
 
-# ----------------------------------------
 # Launch Function
-# ----------------------------------------
 launch_rl_swarm() {
     log_message "INFO" "Launching rl-swarm"
     [ ! -f "$SWARM_DIR/run_rl_swarm.sh" ] && { log_message "ERROR" "run_rl_swarm.sh not found"; exit 1; }
@@ -211,36 +222,28 @@ EOF
     fi
 }
 
-# ----------------------------------------
 # Auto-Fix Function
-# ----------------------------------------
 auto_fix() {
     log_message "INFO" "Running auto-fix"
     [ ! -d "$SWARM_DIR" ] && clone_repository
     [ ! -f "$SWARM_DIR/run_rl_swarm.sh" ] && clone_repository
-    [ ! -d "$SWARM_DIR/.venv" ] || [ ! -f "$SWARM_DIR/.venv/bin/activate" ] && rm -rf "$SWARM_DIR/.venv" && setup_python_env
+    if [ ! -d "$SWARM_DIR/.venv" ] || [ ! -f "$SWARM_DIR/.venv/bin/activate" ]; then
+        rm -rf "$SWARM_DIR/.venv"
+        setup_python_env
+    fi
     restore_files
     manage_swapfile
     log_message "INFO" "Auto-fix completed"
 }
 
-# ----------------------------------------
 # Run Fixall Function
-# ----------------------------------------
 run_fixall() {
     log_message "INFO" "Running fixall.sh"
     bash -c "$(curl -fsSL https://raw.githubusercontent.com/hustleairdrops/Gensyn-Advanced-Solutions/main/fixall.sh)" >/dev/null 2>&1
-    if [ $? -eq 0 ]; then
-        touch "$SWARM_DIR/.fixall_done"
-        log_message "INFO" "fixall.sh executed successfully"
-    else
-        log_message "ERROR" "Failed to execute fixall.sh"
-    fi
+    [ $? -eq 0 ] && touch "$SWARM_DIR/.fixall_done" && log_message "INFO" "fixall.sh executed successfully" || log_message "ERROR" "Failed to execute fixall.sh"
 }
 
-# ----------------------------------------
 # Menu Options
-# ----------------------------------------
 option_1() {
     log_message "INFO" "Option 1: Auto-restart with existing files"
     auto_fix
@@ -302,16 +305,13 @@ option_5() {
     [ $? -eq 0 ] && echo -e "${GREEN}✅ Errors Fixed!${NC}" || echo -e "${RED}❌ Fix Failed. Check Logs.${NC}"
 }
 
-
-# ----------------------------------------
-# Display Logo (OP Design)
-# ----------------------------------------
+# Display Logo
 display_logo() {
     echo -e "${CYAN}${BOLD}"
     echo "┌───────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐"
     echo "│  ██╗░░██╗██╗░░░██╗░██████╗████████╗██╗░░░░░███████╗  ░█████╗░██╗██████╗░██████╗░██████╗░░█████╗░██████╗░░██████╗  │"
     echo "│  ██║░░██║██║░░░██║██╔════╝╚══██╔══╝██║░░░░░██╔════╝  ██╔══██╗██║██╔══██╗██╔══██╗██╔══██╗██╔══██╗██╔══██╗██╔════╝  │"
-    echo "│  ███████║██║░░░██║╚█████╗░░░░██║░░░██║░░░░░█████╗░░  ███████║██║██████╔╝██║░░██║██████╔╝██║░░██║██████╔╝╚█████╗░  │"
+    echo "│  ███████║██║░░░██║╚█████╗░░░░██║░░░██║░░░░░█████╗░░  ███████║██║██╔══██╗██║░░██║██████╔╝██║░░██║██████╔╝╚█████╗░  │"
     echo "│  ██╔══██║██║░░░██║░╚═══██╗░░░██║░░░██║░░░░░██╔══╝░░  ██╔══██║██║██╔══██╗██║░░██║██╔══██╗██║░░██║██╔═══╝░░╚═══██╗  │"
     echo "│  ██║░░██║╚██████╔╝██████╔╝░░░██║░░░███████╗███████╗  ██║░░██║██║██║░░██║██████╔╝██║░░██║╚█████╔╝██║░░░░░██████╔╝  │"
     echo "│  ╚═╝░░╚═╝░╚═════╝░╚═════╝░░░░╚═╝░░░╚══════╝╚══════╝  ╚═╝░░╚═╝╚═╝╚═╝░░╚═╝╚═════╝░╚═╝░░╚═╝░╚════╝░╚═╝░░░░░╚═════╝░  │"
@@ -321,9 +321,7 @@ display_logo() {
     echo -e "${NC}"
 }
 
-# ----------------------------------------
 # Stop Handler (Ctrl+X)
-# ----------------------------------------
 stop_script() {
     log_message "INFO" "Stopping script (Ctrl+X)"
     STOP_REQUESTED=1
@@ -337,9 +335,7 @@ stop_script() {
 stty intr ^X
 trap stop_script INT
 
-# ----------------------------------------
 # Main Menu
-# ----------------------------------------
 while true; do
     clear
     display_logo
@@ -379,9 +375,7 @@ while true; do
     esac
 done
 
-# ----------------------------------------
 # Background Backup
-# ----------------------------------------
 (
     while true; do
         sleep 300
