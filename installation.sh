@@ -169,14 +169,17 @@ else
 fi
 
 # -------------------------------------
-# 📦 Install modal-login dependencies
+# 📦 Install modal-login dependencies (only for downgraded)
 # -------------------------------------
-echo -e "${YELLOW}📦 Installing modal-login packages...${NC}"
-cd modal-login
-yarn install
-yarn upgrade
-yarn add next@latest viem@latest
-echo -e "${GREEN}✅ modal-login setup complete.${NC}"
+if [ "$USE_LATEST" = false ]; then
+    echo -e "${YELLOW}📦 Installing modal-login packages...${NC}"
+    cd modal-login
+    yarn install
+    yarn upgrade
+    yarn add next@latest viem@latest
+    echo -e "${GREEN}✅ modal-login setup complete.${NC}"
+    cd ..
+fi
 
 # -------------------------------------
 # 🛠 Final Fixes
