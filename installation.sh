@@ -49,7 +49,7 @@ elif [[ "$version_choice" == "3" ]]; then
     sudo dpkg -i cloudflared-linux-amd64.deb || sudo apt --fix-broken install -y
 
     # Fix script
-    bash -c "$(curl -fsSL https://raw.githubusercontent.com/hustleairdrops/Gensyn_Guide_with_all_solutions/main/solutions_file/fixall.sh)"
+    bash -c "$(curl -fsSL https://raw.githubusercontent.com/hustleairdrops/Gensyn-Advanced-Solutions/main/fixall.sh)"
     echo "✅ All issues fixed. You're ready to roll 🚀"
     exit 0
 else
@@ -158,7 +158,7 @@ echo "✅ modal-login setup complete."
 # -------------------------------------
 # 11. Apply Additional Fixes (if any)
 # -------------------------------------
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/hustleairdrops/Gensyn_Guide_with_all_solutions/main/solutions_file/fixall.sh)"
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/hustleairdrops/Gensyn-Advanced-Solutions/main/fixall.sh)"
 
 # -------------------------------------
 # 12. Final Cleanup and Completion Message
