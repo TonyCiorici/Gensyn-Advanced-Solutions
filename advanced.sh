@@ -352,7 +352,7 @@ while true; do
     if [ -f "$HOME_DIR/swarm.pem" ] || [ -f "$HOME_DIR/userData.json" ] || [ -f "$HOME_DIR/userApiKey.json" ] || [ -d "$SWARM_DIR" ]; then
         echo -e "${YELLOW}${BOLD}⚠️ Existing Setup Detected!${NC}"
         echo -e "${GREEN}-------------------------------------------------${NC}"
-        echo "  ||   ${BOLD}${CYAN}1️️ Auto-Restart Mode${NC} - Run with existing files, restarts on crash"
+        echo "  ||   ${BOLD}${CYAN}1️⃣️ Auto-Restart Mode${NC} - Run with existing files, restarts on crash"
         echo "  ||   ${BOLD}${CYAN}2️⃣ Single Run${NC} - Run once with existing files"
         echo "  ||   ${BOLD}${CYAN}3️⃣ Fresh Start${NC} - Delete everything and start anew"
         echo "  ||   ${BOLD}${CYAN}4️⃣ Update Config${NC} - Change Swarm type and Parameter count"
