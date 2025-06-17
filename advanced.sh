@@ -124,7 +124,7 @@ restore_files() {
                 dest="$TEMP_DATA_PATH/$(basename "$src")"
             fi
             if [ ! -f "$dest" ]; then
-                cp -f "$src" "$dest" 2>/dev/null
+                sudo cp -f "$src" "$dest" 2>/dev/null
                 if [ $? -eq 0 ]; then
                     chmod 600 "$dest"
                     ((restored++))
