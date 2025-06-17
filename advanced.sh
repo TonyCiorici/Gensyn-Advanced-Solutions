@@ -381,6 +381,7 @@ while true; do
         3) option_3; break ;;
         4) option_4; break ;;
         5) option_5; break ;;
+        6) option_6; break ;;
         *) log_message "ERROR" "Invalid choice: $choice"; echo -e "${RED}❌ Invalid Option!${NC}" ;;
     esac
 done
