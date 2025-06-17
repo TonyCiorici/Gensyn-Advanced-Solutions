@@ -166,6 +166,7 @@ setup_python_env() {
     source .venv/bin/activate
     [ -f "requirements.txt" ] && pip install -r requirements.txt >/dev/null 2>&1 && log_message "INFO" "Installed dependencies" || log_message "WARN" "Failed to install dependencies"
 }
+
 # ----------------------------------------
 # Remove Swapfile
 # ----------------------------------------
@@ -226,6 +227,20 @@ auto_fix() {
 }
 
 # ----------------------------------------
+# Run Fixall Function
+# ----------------------------------------
+run_fixall() {
+    log_message "INFO" "Running fixall.sh"
+    bash -c "$(curl -fsSL https://raw.githubusercontent.com/hustleairdrops/Gensyn-Advanced-Solutions/main/fixall.sh)" >/dev/null 2>&1
+    if [ $? -eq 0 ]; then
+        touch "$SWARM_DIR/.fixall_done"
+        log_message "INFO" "fixall.sh executed successfully"
+    else
+        log dreamy "ERROR" "Failed to execute fixall.sh"
+    fi
+}
+
+# ----------------------------------------
 # Menu Options
 # ----------------------------------------
 option_1() {
@@ -257,6 +272,7 @@ option_3() {
     rm -rf "$SWARM_DIR"
     clone_repository
     setup_python_env
+    run_fixall
     launch_rl_swarm
 }
 
@@ -284,7 +300,7 @@ EOF
 option_5() {
     log_message "INFO" "Option 5: Fix all errors"
     echo -e "${CYAN}🛠️ Fixing Errors...${NC}"
-    bash -c "$(curl -fsSL https://raw.githubusercontent.com/hustleairdrops/Gensyn_Guide_with_all_solutions/main/solutions_file/fixall.sh)" >/dev/null 2>&1
+    bash -c "$(curl -fsSL https://raw.githubusercontent.com/hustleairdrops/Gensyn-Advanced-Solutions/main/fixall.sh)" >/dev/null 2>&1
     [ $? -eq 0 ] && echo -e "${GREEN}✅ Errors Fixed!${NC}" || echo -e "${RED}❌ Fix Failed. Check Logs.${NC}"
 }
 
@@ -303,7 +319,6 @@ display_logo() {
     echo "└───────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘"
     echo -e "${YELLOW}           🚀 Gensyn RL-Swarm Launcher by Hustle Airdrops 🚀${NC}"
     echo -e "${YELLOW}              GitHub: https://github.com/HustleAirdrops${NC}"
-    echo -e "${YELLOW}              Telegram: https://t.me/Hustle_Airdrops${NC}"
     echo -e "${NC}"
 }
 
@@ -337,7 +352,7 @@ while true; do
     if [ -f "$HOME_DIR/swarm.pem" ] || [ -f "$HOME_DIR/userData.json" ] || [ -f "$HOME_DIR/userApiKey.json" ] || [ -d "$SWARM_DIR" ]; then
         echo -e "${YELLOW}${BOLD}⚠️ Existing Setup Detected!${NC}"
         echo -e "${GREEN}-------------------------------------------------${NC}"
-        echo "  ||   ${BOLD}${CYAN}1️⃣ Auto-Restart Mode${NC} - Run with existing files, restarts on crash"
+        echo "  ||   ${BOLD}${CYAN}1️️ Auto-Restart Mode${NC} - Run with existing files, restarts on crash"
         echo "  ||   ${BOLD}${CYAN}2️⃣ Single Run${NC} - Run once with existing files"
         echo "  ||   ${BOLD}${CYAN}3️⃣ Fresh Start${NC} - Delete everything and start anew"
         echo "  ||   ${BOLD}${CYAN}4️⃣ Update Config${NC} - Change Swarm type and Parameter count"
@@ -349,6 +364,7 @@ while true; do
         echo -e "${GREEN}✅ No Setup Found. Starting Fresh...${NC}"
         clone_repository
         setup_python_env
+        run_fixall
         launch_rl_swarm
         exit 0
     fi
