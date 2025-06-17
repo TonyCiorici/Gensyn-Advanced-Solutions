@@ -88,34 +88,22 @@ manage_swapfile() {
 
 # Backup Function
 backup_files() {
-    log_message "INFO" "Backing up files to $HOME_DIR"
     mkdir -p "$TEMP_DATA_PATH" "$HOME_DIR"
     chmod 700 "$TEMP_DATA_PATH" "$HOME_DIR"
-    local copied=0
     for src in "$SWARM_DIR/swarm.pem" "$TEMP_DATA_PATH/userData.json" "$TEMP_DATA_PATH/userApiKey.json"; do
         dest="$HOME_DIR/$(basename "$src")"
         if [ -f "$src" ] && [ ! -f "$dest" ]; then
             cp -f "$src" "$dest" 2>/dev/null
-            if [ $? -eq 0 ]; then
-                chmod 600 "$dest"
-                ((copied++))
-                log_message "INFO" "Backed up $(basename "$src")"
-            else
-                log_message "ERROR" "Backup failed for $(basename "$src")"
-            fi
-        elif [ ! -f "$src" ]; then
-            log_message "WARN" "Source file $src does not exist, skipping backup"
+            [ $? -eq 0 ] && chmod 600 "$dest"
         fi
     done
-    [ $copied -gt 0 ] && log_message "INFO" "Backed up $copied file(s)"
 }
+
 
 # Restore Function
 restore_files() {
-    log_message "INFO" "Restoring files to $SWARM_DIR"
     mkdir -p "$TEMP_DATA_PATH"
     chmod 700 "$TEMP_DATA_PATH"
-    local restored=0
     for src in "$HOME_DIR/swarm.pem" "$HOME_DIR/userData.json" "$HOME_DIR/userApiKey.json"; do
         if [ -f "$src" ]; then
             if [[ "$(basename "$src")" == "swarm.pem" ]]; then
@@ -125,22 +113,12 @@ restore_files() {
             fi
             if [ ! -f "$dest" ]; then
                 sudo cp -f "$src" "$dest" 2>/dev/null
-                if [ $? -eq 0 ]; then
-                    chmod 600 "$dest"
-                    ((restored++))
-                    log_message "INFO" "Restored $(basename "$src")"
-                else
-                    log_message "ERROR" "Restore failed for $(basename "$src")"
-                fi
-            else
-                log_message "INFO" "File $dest already exists, skipping restore"
+                [ $? -eq 0 ] && chmod 600 "$dest"
             fi
-        else
-            log_message "WARN" "Backup file $src does not exist, cannot restore"
         fi
     done
-    [ $restored -gt 0 ] && log_message "INFO" "Restored $restored file(s)"
 }
+
 
 # Clone Repository
 clone_repository() {
