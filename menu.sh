@@ -108,20 +108,18 @@ manage_swap() {
 
 # Fixall Script
 run_fixall() {
-    log "INFO" "Running fixall.sh"
+    echo -e "${CYAN}🔧 Running fixall.sh...${NC}"
     bash -c "$(curl -fsSL https://raw.githubusercontent.com/hustleairdrops/Gensyn-Advanced-Solutions/main/fixall.sh)" >/dev/null 2>&1
+
     if [ $? -eq 0 ]; then
         touch "$SWARM_DIR/.fixall_done"
-        log "INFO" "fixall.sh executed successfully"
-        echo -e "${GREEN}✅ All errors fixed! Returning to main menu...${NC}"
+        echo -e "${GREEN}✅ fixall.sh executed successfully${NC}"
     else
-        log "ERROR" "Failed to execute fixall.sh"
-        echo -e "${RED}❌ Fix script failed! Returning to main menu...${NC}"
+        echo -e "${RED}❌ fixall.sh failed${NC}"
     fi
-    sleep 5
-    main_menu
-}
 
+    sleep 5
+}
 
 
 
@@ -204,7 +202,6 @@ manage_pem() {
     fi
 }
 
-# Install Node
 # Install Node
 install_node() {
     show_header
@@ -382,7 +379,9 @@ main_menu() {
             1) install_node ;;
             2) run_node ;;
             3) update_config ;;
-            4) run_fixall ;;
+            4) run_fixall 
+               return  
+               ;;
             5) reset_peer ;;
             6)
                 echo -e "\n${RED}${BOLD}⚠️ WARNING: This will delete ALL node data!${NC}"
