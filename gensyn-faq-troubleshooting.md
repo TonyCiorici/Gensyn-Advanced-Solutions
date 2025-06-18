@@ -1,6 +1,4 @@
-<div align="center">
-## ❓ FAQ & Troubleshooting
-</div>
+<h2 align="center">❓ FAQ & Troubleshooting</h2>
 
 
 ---
