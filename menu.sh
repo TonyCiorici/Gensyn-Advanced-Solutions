@@ -381,12 +381,7 @@ main_menu() {
             1) install_node ;;
             2) run_node ;;
             3) update_config ;;
-            4) 
-                echo -e "\n${CYAN}Running comprehensive fixes...${NC}"
-                run_fixall
-                echo -e "${GREEN}✅ All errors fixed!${NC}"
-                sleep 2
-                ;;
+            4) run_fixall ;;
             5) reset_peer ;;
             6)
                 echo -e "\n${RED}${BOLD}⚠️ WARNING: This will delete ALL node data!${NC}"
