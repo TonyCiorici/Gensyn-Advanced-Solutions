@@ -64,7 +64,6 @@ show_header() {
 
 # Dependencies
 install_deps() {
-    log "INFO" "Installing system dependencies"
     sudo apt update >/dev/null 2>&1
     sudo apt install -y \
         python3 python3-venv python3-pip \
@@ -90,8 +89,6 @@ install_deps() {
     wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
     sudo dpkg -i cloudflared-linux-amd64.deb >/dev/null 2>&1 || sudo apt --fix-broken install -y >/dev/null 2>&1
     rm -f cloudflared-linux-amd64.deb >/dev/null 2>&1
-    
-    log "INFO" "Dependencies installed"
 }
 
 # Swap Management
@@ -126,7 +123,6 @@ modify_run_script() {
     if [ -f "$run_script" ]; then
         if ! grep -q 'KEEP_TEMP_DATA' "$run_script"; then
             perl -i -pe 's#rm -r \$ROOT_DIR/modal-login/temp-data/\*.json 2> /dev/null \|\| true#if [ "\$KEEP_TEMP_DATA" != "true" ]; then\n    rm -r \$ROOT_DIR/modal-login/temp-data/*.json 2> /dev/null \|\| true\nfi#' "$run_script"
-            log "INFO" "Modified run script to preserve temp data"
         fi
     fi
 }
@@ -134,27 +130,22 @@ modify_run_script() {
 # Clone Repository
 clone_repo() {
     local version="$1"
-    log "INFO" "Cloning RL-Swarm repository"
-    rm -rf "$SWARM_DIR" 2>/dev/null
+    sudo rm -rf "$SWARM_DIR" 2>/dev/null
     git clone "$REPO_URL" "$SWARM_DIR" >/dev/null 2>&1
     cd "$SWARM_DIR"
     
     if [ "$version" == "downgraded" ]; then
-        log "INFO" "Using downgraded version"
         git checkout "$DOWNGRADED_COMMIT" >/dev/null 2>&1
         cd modal-login
         yarn install >/dev/null 2>&1
         yarn upgrade >/dev/null 2>&1
         yarn add next@latest viem@latest >/dev/null 2>&1
         cd ..
-    else
-        log "INFO" "Using latest version"
     fi
 }
 
 # Python Environment
 setup_python_env() {
-    log "INFO" "Setting up Python environment"
     cd "$SWARM_DIR"
     python3 -m venv .venv >/dev/null 2>&1
     source .venv/bin/activate
