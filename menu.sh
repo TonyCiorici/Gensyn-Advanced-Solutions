@@ -152,6 +152,19 @@ setup_python_env() {
     pip install -r requirements.txt >/dev/null 2>&1
 }
 
+create_default_config() {
+    log "INFO" "Creating default config at $CONFIG_FILE"
+    mkdir -p "$SWARM_DIR"
+    cat <<EOF > "$CONFIG_FILE"
+TESTNET=Y
+SWARM=A
+PARAM=7
+PUSH=N
+EOF
+    chmod 600 "$CONFIG_FILE"
+    log "INFO" "Default config created"
+}
+
 # PEM Management
 manage_pem() {
     if [ -f "$HOME/swarm.pem" ]; then
