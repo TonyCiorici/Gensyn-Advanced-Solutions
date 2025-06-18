@@ -212,29 +212,42 @@ install_node() {
         echo -e "${RED}❌ Invalid version choice!${NC}"
         return 1
     }
-    
+
     local version=$([ "$version_choice" == "1" ] && echo "latest" || echo "downgraded")
-    
-    # Ask about auto-login
+
     echo -e "\n${CYAN}Auto-login configuration:${NC}"
     echo "Preserve login data between sessions? (recommended for auto-login)"
     read -p "${BOLD}Enable auto-login? [Y/n]: ${NC}" auto_login
     KEEP_TEMP_DATA=$([[ "$auto_login" =~ ^[Nn]$ ]] && echo "false" || echo "true")
-    
-    # Start installation
+
     echo -e "\n${YELLOW}Starting installation...${NC}"
-    install_deps
-    manage_swap
-    manage_pem
-    clone_repo "$version"
-    setup_python_env
-    modify_run_script
-    run_fixall
-    
-    echo -e "${GREEN}✅ Installation completed!${NC}"
+
+    spinner() {
+        local pid=$1
+        local msg="$2"
+        local spinstr="⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
+        while kill -0 "$pid" 2>/dev/null; do
+            for (( i=0; i<${#spinstr}; i++ )); do
+                printf "\r$msg ${spinstr:$i:1} "
+                sleep 0.15
+            done
+        done
+        printf "\r$msg ✅ Done\n"
+    }
+
+    ( install_deps ) & spinner $! "📦 Installing dependencies"
+    ( manage_swap ) & spinner $! "🔁 Managing swap space"
+    ( manage_pem ) & spinner $! "🔐 Handling swarm.pem"
+    ( clone_repo "$version" ) & spinner $! "📥 Cloning $version repo"
+    ( setup_python_env ) & spinner $! "🐍 Setting up Python venv"
+    ( modify_run_script ) & spinner $! "🧠 Modifying run script"
+    ( run_fixall ) & spinner $! "🛠 Applying final fixes"
+
+    echo -e "\n${GREEN}✅ Installation completed!${NC}"
     echo -e "Auto-login: ${GREEN}$([ "$KEEP_TEMP_DATA" == "true" ] && echo "ENABLED" || echo "DISABLED")${NC}"
     sleep 5
 }
+
 
 # Run Node
 # Run Node
