@@ -121,9 +121,27 @@ run_fixall() {
 modify_run_script() {
     local run_script="$SWARM_DIR/run_rl_swarm.sh"
     if [ -f "$run_script" ]; then
-        if ! grep -q 'KEEP_TEMP_DATA' "$run_script"; then
-            perl -i -pe 's#rm -r \$ROOT_DIR/modal-login/temp-data/\*.json 2> /dev/null \|\| true#if [ "\$KEEP_TEMP_DATA" != "true" ]; then\n    rm -r \$ROOT_DIR/modal-login/temp-data/*.json 2> /dev/null \|\| true\nfi#' "$run_script"
+        if ! grep -q ': "${KEEP_TEMP_DATA:=true}"' "$run_script"; then
+            sudo sed -i '1a : "${KEEP_TEMP_DATA:=true}"' "$run_script"
         fi
+
+        if ! grep -q 'if [ "\$KEEP_TEMP_DATA" != "true" ]; then' "$run_script"; then
+            perl -i -pe 's#rm -r \$ROOT_DIR/modal-login/temp-data/\*.json 2> /dev/null \|\| true#if [ "\$KEEP_TEMP_DATA" != "true" ]; then\n    rm -r \$ROOT_DIR/modal-login/temp-data/*.json 2> /dev/null \|\| true\nfi#' "$run_script"
+            log "INFO" "Modified temp data deletion logic in $run_script"
+        fi
+
+    fi
+}
+
+fix_kill_command() {
+    local run_script="$SWARM_DIR/run_rl_swarm.sh"
+    if [ -f "$run_script" ]; then
+        if ! grep -q 'kill -TERM -- -$$ 2>/dev/null \|\| true' "$run_script"; then
+            sudo sed -i 's#kill -- -$$ || true#kill -TERM -- -$$ 2>/dev/null || true#' "$run_script"
+            log "INFO" "Fixed kill command in $run_script to suppress errors"
+        fi
+    else
+        log "ERROR" "run_rl_swarm.sh not found at $run_script"
     fi
 }
 
@@ -255,6 +273,7 @@ install_node() {
 
 # Run Node
 # Run Node
+# Run Node
 run_node() {
     show_header
     echo -e "${CYAN}${BOLD}🚀 RUN MODE SELECTION${NC}"
@@ -286,7 +305,11 @@ run_node() {
         source "$CONFIG_FILE"
     fi
     
+    # Ensure KEEP_TEMP_DATA is set
+    : "${KEEP_TEMP_DATA:=true}"
     export KEEP_TEMP_DATA
+    modify_run_script
+    fix_kill_command
     
     case $run_choice in
         1)
@@ -294,7 +317,7 @@ run_node() {
             cd "$SWARM_DIR"
             source .venv/bin/activate
             while true; do
-                ./run_rl_swarm.sh <<< "$TESTNET\n$SWARM\n$PARAM\n$PUSH" || {
+                KEEP_TEMP_DATA="$KEEP_TEMP_DATA" ./run_rl_swarm.sh <<< "$TESTNET\n$SWARM\n$PARAM\n$PUSH" || {
                     log "WARN" "Node crashed, restarting in 5 seconds..."
                     echo -e "${YELLOW}⚠️ Node crashed. Restarting in 5 seconds...${NC}"
                     sleep 5
@@ -305,7 +328,7 @@ run_node() {
             log "INFO" "Starting node in single-run mode"
             cd "$SWARM_DIR"
             source .venv/bin/activate
-            ./run_rl_swarm.sh <<< "$TESTNET\n$SWARM\n$PARAM\n$PUSH"
+            KEEP_TEMP_DATA="$KEEP_TEMP_DATA" ./run_rl_swarm.sh <<< "$TESTNET\n$SWARM\n$PARAM\n$PUSH"
             ;;
         3)
             log "INFO" "Starting fresh installation + run"
@@ -316,6 +339,7 @@ run_node() {
             ;;
     esac
 }
+
 # Update Configuration
 update_config() {
     show_header
