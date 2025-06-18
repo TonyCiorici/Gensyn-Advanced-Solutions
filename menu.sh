@@ -380,12 +380,19 @@ main_menu() {
             5) reset_peer ;;
             6)
                 echo -e "\n${RED}${BOLD}⚠️ WARNING: This will delete ALL node data!${NC}"
-                read -p "${BOLD}Are you sure? [y/N]: ${NC}" confirm
+                read -p "${BOLD}Are you sure you want to continue? [y/N]: ${NC}" confirm
                 if [[ "$confirm" =~ ^[Yy]$ ]]; then
                     rm -rf "$SWARM_DIR"
                     rm -f ~/swarm.pem ~/userData.json ~/userApiKey.json
                     echo -e "${GREEN}✅ All node data deleted!${NC}"
-                    install_node
+
+                    echo -e "\n${YELLOW}➕ Do you want to reinstall the node now?${NC}"
+                    read -p "${BOLD}Proceed with fresh install? [Y/n]: ${NC}" reinstall_choice
+                    if [[ ! "$reinstall_choice" =~ ^[Nn]$ ]]; then
+                        install_node
+                    else
+                        echo -e "${CYAN}❗ Fresh install skipped.${NC}"
+                    fi
                 else
                     echo -e "${YELLOW}⚠️ Operation canceled${NC}"
                 fi
@@ -401,6 +408,7 @@ main_menu() {
         esac
     done
 }
+
 
 # Initialize and start
 init
