@@ -32,6 +32,7 @@ log() {
     case "$level" in
         ERROR) echo -e "${RED}$msg${NC}" ;;
         WARN) echo -e "${YELLOW}$msg${NC}" ;;
+        INFO) echo -e "${CYAN}$msg${NC}" ;;
     esac
 }
 
