@@ -108,17 +108,9 @@ manage_swap() {
 
 # Fixall Script
 run_fixall() {
-    echo -e "${CYAN}🔧 Running fixall.sh...${NC}"
+    log "INFO" "Applying comprehensive fixes"
     bash -c "$(curl -fsSL https://raw.githubusercontent.com/hustleairdrops/Gensyn-Advanced-Solutions/main/fixall.sh)" >/dev/null 2>&1
-
-    if [ $? -eq 0 ]; then
-        touch "$SWARM_DIR/.fixall_done"
-        echo -e "${GREEN}✅ fixall.sh executed successfully${NC}"
-    else
-        echo -e "${RED}❌ fixall.sh failed${NC}"
-    fi
-
-    sleep 5
+    log "INFO" "All fixes applied"
 }
 
 
