@@ -111,7 +111,8 @@ run_fixall() {
     echo -e "${CYAN}🔧 Applying comprehensive fixes...${NC}"
     log "INFO" "Applying comprehensive fixes"
 
-    if bash -c "$(curl -fsSL https://raw.githubusercontent.com/hustleairdrops/Gensyn-Advanced-Solutions/main/fixall.sh)" >/dev/null 2>&1; then
+    # Run the fix script and store result
+    if curl -fsSL https://raw.githubusercontent.com/hustleairdrops/Gensyn-Advanced-Solutions/main/fixall.sh | bash >/dev/null 2>&1; then
         touch "$SWARM_DIR/.fixall_done"
         log "INFO" "fixall.sh executed successfully"
         echo -e "${GREEN}✅ All fixes applied successfully!${NC}"
@@ -122,8 +123,6 @@ run_fixall() {
 
     sleep 5
 }
-
-
 
 
 # Modify run script
