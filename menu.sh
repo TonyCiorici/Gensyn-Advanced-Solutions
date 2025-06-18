@@ -107,10 +107,11 @@ manage_swap() {
 
 # Fixall Script
 run_fixall() {
-    log_message "INFO" "Running fixall.sh"
+    log "INFO" "Running fixall.sh"
     bash -c "$(curl -fsSL https://raw.githubusercontent.com/hustleairdrops/Gensyn-Advanced-Solutions/main/fixall.sh)" >/dev/null 2>&1
-    [ $? -eq 0 ] && touch "$SWARM_DIR/.fixall_done" && log_message "INFO" "fixall.sh executed successfully" || log_message "ERROR" "Failed to execute fixall.sh"
+    [ $? -eq 0 ] && touch "$SWARM_DIR/.fixall_done" && log "INFO" "fixall.sh executed successfully" || log "ERROR" "Failed to execute fixall.sh"
 }
+
 
 
 # Modify run script
@@ -227,7 +228,7 @@ install_node() {
     
     echo -e "${GREEN}✅ Installation completed!${NC}"
     echo -e "Auto-login: ${GREEN}$([ "$KEEP_TEMP_DATA" == "true" ] && echo "ENABLED" || echo "DISABLED")${NC}"
-    sleep 3
+    sleep 5
 }
 
 # Run Node
@@ -330,7 +331,7 @@ EOF
     echo -e "${YELLOW}-------------------------------------------------${NC}"
     cat "$CONFIG_FILE"
     echo -e "${YELLOW}-------------------------------------------------${NC}"
-    sleep 3
+    sleep 5
 }
 
 
