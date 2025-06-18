@@ -336,7 +336,6 @@ EOF
 
 # Reset Peer ID
 reset_peer() {
-    show_header
     echo -e "${RED}${BOLD}⚠️ WARNING: This will delete ALL node keys and data!${NC}"
     read -p "${BOLD}Are you sure? [y/N]: ${NC}" confirm
     
