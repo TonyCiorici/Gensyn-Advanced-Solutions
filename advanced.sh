@@ -97,6 +97,14 @@ modify_run_script() {
     fi
 }
 
+# Copy swarm file
+copy_swarm_pem() {
+    [ -f "$HOME_DIR/swarm.pem" ] || exit 1
+    sudo cp "$HOME_DIR/swarm.pem" "$SWARM_DIR/swarm.pem"
+    sudo chmod 600 "$SWARM_DIR/swarm.pem"
+    sudo chown "$(whoami):$(whoami)" "$SWARM_DIR/swarm.pem"
+}
+
 # Clone Repository
 clone_repository() {
     log_message "INFO" "Cloning rl-swarm to $SWARM_DIR"
@@ -111,6 +119,14 @@ clone_repository() {
         exit 1
     fi
     create_default_config
+}
+
+# Copy swarm to home 
+copy_swarm_pem_to_home() {
+    [ -f "$SWARM_DIR/swarm.pem" ] || exit 1
+    sudo cp "$SWARM_DIR/swarm.pem" "$HOME_DIR/swarm.pem"
+    sudo chmod 600 "$HOME_DIR/swarm.pem"
+    sudo chown "$(whoami):$(whoami)" "$HOME_DIR/swarm.pem"
 }
 
 # Python Environment Setup
@@ -202,6 +218,7 @@ run_fixall() {
 option_1() {
     log_message "INFO" "Option 1: Auto-restart with existing files"
     export KEEP_TEMP_DATA=true
+    copy_swarm_pem
     modify_run_script
     pkill -f swarm.pem 2>/dev/null
     auto_fix
@@ -221,6 +238,7 @@ option_1() {
 option_2() {
     log_message "INFO" "Option 2: Run once with existing files"
     export KEEP_TEMP_DATA=true
+    copy_swarm_pem
     modify_run_script
     auto_fix
     ensure_venv_installed
@@ -232,22 +250,30 @@ option_2() {
 
 option_3() {
     log_message "INFO" "Option 3: Delete and start fresh"
-    rm -rf "$SWARM_DIR"
-    rm -f ~/swarm.pem ~/userData.json ~/userApiKey.json
+    echo -e "${YELLOW}⚠️ Do you want to delete swarm.pem? (y/n): ${NC}"
+    read -p "" delete_pem
+    if [[ "$delete_pem" =~ ^[Yy]$ ]]; then
+        log_message "INFO" "User chose to delete swarm.pem"
+        rm -rf "$SWARM_DIR"
+        rm -f ~/swarm.pem ~/userData.json ~/userApiKey.json
+    else
+        log_message "INFO" "User chose to keep swarm.pem, copying to home"
+        copy_swarm_pem_to_home
+        rm -rf "$SWARM_DIR"
+        rm -f ~/userData.json ~/userApiKey.json
+    fi
     clone_repository
     modify_run_script
     ensure_venv_installed
     setup_python_env
     run_fixall
-    echo -e "${YELLOW}⚠️ Please place your swarm.pem in $HOME_DIR and press Enter to continue.${NC}"
-    read -p ""
     if [ -f "$HOME_DIR/swarm.pem" ]; then
-        cp "$HOME_DIR/swarm.pem" "$SWARM_DIR/swarm.pem"
-        chmod 600 "$SWARM_DIR/swarm.pem"
-        launch_rl_swarm
+        copy_swarm_pem
+        log_message "INFO" "Fresh installation completed with swarm.pem"
+        echo -e "${GREEN}✅ Successfully installed rl-swarm with swarm.pem copied to $SWARM_DIR!${NC}"
     else
-        log_message "ERROR" "swarm.pem not found in $HOME_DIR"
-        echo -e "${RED}❌ swarm.pem not found!${NC}"
+        log_message "INFO" "Fresh installation completed without swarm.pem"
+        echo -e "${GREEN}✅ Successfully installed rl-swarm! Please place swarm.pem in $HOME_DIR to proceed with launching.${NC}"
     fi
 }
 
