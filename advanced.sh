@@ -89,7 +89,7 @@ manage_swapfile() {
 modify_run_script() {
     if [ -f "$SWARM_DIR/run_rl_swarm.sh" ]; then
         if ! grep -q 'if \[ "\$KEEP_TEMP_DATA" != "true" \]; then' "$SWARM_DIR/run_rl_swarm.sh"; then
-            perl -i -pe 's|rm -r \$ROOT_DIR/modal-login/temp-data/\*.json 2> /dev/null \|\| true|if [ "\$KEEP_TEMP_DATA" != "true" ]; then\n    rm -r \$ROOT_DIR/modal-login/temp-data/\*.json 2> /dev/null || true\nfi|' "$SWARM_DIR/run_rl_swarm.sh"
+            perl -i -pe 's|rm -r \$ROOT_DIR/modal-login/temp-data/\*.json 2> /dev/null \|\| true|if [ "\$KEEP_TEMP_DATA" != \"true\" ]; then\n    rm -r \$ROOT_DIR/modal-login/temp-data/\*.json 2> /dev/null || true\nfi|' "$SWARM_DIR/run_rl_swarm.sh"
             log_message "INFO" "Modified run_rl_swarm.sh to conditionally delete temp data"
         else
             log_message "INFO" "run_rl_swarm.sh already modified"
