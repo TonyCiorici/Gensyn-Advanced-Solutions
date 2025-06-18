@@ -109,8 +109,18 @@ manage_swap() {
 run_fixall() {
     log "INFO" "Running fixall.sh"
     bash -c "$(curl -fsSL https://raw.githubusercontent.com/hustleairdrops/Gensyn-Advanced-Solutions/main/fixall.sh)" >/dev/null 2>&1
-    [ $? -eq 0 ] && touch "$SWARM_DIR/.fixall_done" && log "INFO" "fixall.sh executed successfully" || log "ERROR" "Failed to execute fixall.sh"
+    if [ $? -eq 0 ]; then
+        touch "$SWARM_DIR/.fixall_done"
+        log "INFO" "fixall.sh executed successfully"
+        echo -e "${GREEN}✅ All errors fixed! Returning to main menu...${NC}"
+    else
+        log "ERROR" "Failed to execute fixall.sh"
+        echo -e "${RED}❌ Fix script failed! Returning to main menu...${NC}"
+    fi
+    sleep 5
+    main_menu
 }
+
 
 
 
