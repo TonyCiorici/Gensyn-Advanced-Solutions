@@ -347,7 +347,7 @@ reset_peer() {
     else
         echo -e "${YELLOW}⚠️ Operation canceled${NC}"
     fi
-    sleep 2
+    sleep 5
 }
 
 # Main Menu
