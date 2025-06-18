@@ -114,10 +114,8 @@ run_fixall() {
     # Run the fix script and store result
     if curl -fsSL https://raw.githubusercontent.com/hustleairdrops/Gensyn-Advanced-Solutions/main/fixall.sh | bash >/dev/null 2>&1; then
         touch "$SWARM_DIR/.fixall_done"
-        log "INFO" "fixall.sh executed successfully"
         echo -e "${GREEN}✅ All fixes applied successfully!${NC}"
     else
-        log "ERROR" "Failed to apply fixes from fixall.sh"
         echo -e "${RED}❌ Failed to apply fixes!${NC}"
     fi
 
