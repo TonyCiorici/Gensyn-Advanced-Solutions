@@ -240,10 +240,10 @@ install_node() {
 # Run Node
 run_node() {
     show_header
-    echo -e "${CYAN}${BOLD}RUN OPTIONS${NC}"
-    echo "1. 🔁 Auto-restart mode (recommended)"
-    echo "2. ▶️ Single run"
-    echo "3. 🆕 Fresh start (reinstall + run)"
+    echo -e "${CYAN}${BOLD}🚀 RUN MODE SELECTION${NC}"
+    echo "1. 🔄  Auto-Restart Mode (🟢 Recommended)"
+    echo "2. 🎯  Single Run (Just Run Once)"
+    echo "3. 🧼  Fresh Start (Reinstall + Run)"
     echo -e "${YELLOW}===============================================================================${NC}"
     
     read -p "${BOLD}${YELLOW}➡️ Choose run mode [1-3]: ${NC}" run_choice
