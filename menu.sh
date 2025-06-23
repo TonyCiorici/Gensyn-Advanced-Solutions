@@ -313,10 +313,14 @@ run_node() {
     
     read -p "${BOLD}${YELLOW}➡️ Choose run mode [1-3]: ${NC}" run_choice
     
-    if [ ! -d "$SWARM_DIR" ]; then
-        echo -e "${RED}❌ Node not installed! Installing first...${NC}"
-        install_node
-        [ $? -ne 0 ] && return 1
+    if [ ! -f "$SWARM_DIR/swarm.pem" ]; then
+        if [ -f "$HOME/swarm.pem" ]; then
+            sudo cp "$HOME/swarm.pem" "$SWARM_DIR/swarm.pem"
+            sudo chmod 600 "$SWARM_DIR/swarm.pem"
+        else
+            echo "Error: swarm.pem not found in HOME directory."
+            exit 1
+        fi
     fi
     
     if [ -f "$CONFIG_FILE" ]; then
