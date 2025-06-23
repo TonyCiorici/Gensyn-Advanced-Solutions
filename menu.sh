@@ -318,10 +318,11 @@ run_node() {
             sudo cp "$HOME/swarm.pem" "$SWARM_DIR/swarm.pem"
             sudo chmod 600 "$SWARM_DIR/swarm.pem"
         else
-            echo "Error: swarm.pem not found in HOME directory."
-            exit 1
+            echo -e "${RED}swarm.pem not found in HOME directory. Proceeding without it...${NC}"
+          
         fi
     fi
+
     
     if [ -f "$CONFIG_FILE" ]; then
         source "$CONFIG_FILE"
