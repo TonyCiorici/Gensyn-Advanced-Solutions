@@ -245,8 +245,8 @@ install_node() {
     # Handle swarm.pem from SWARM_DIR
     if [ -f "$SWARM_DIR/swarm.pem" ]; then
         echo -e "\n${YELLOW}⚠️ Existing swarm.pem detected in SWARM_DIR!${NC}"
-        echo "1. Keep and use existing PEM"
-        echo "2. Delete and generate new PEM"
+        echo "1. Keep and use existing Swarm.pem"
+        echo "2. Delete and generate new Swarm.pem"
         echo "3. Cancel installation"
         read -p "${BOLD}➡️ Choose action [1-3]: ${NC}" pem_choice
 
@@ -307,7 +307,7 @@ run_node() {
     show_header
     echo -e "${CYAN}${BOLD}🚀 RUN MODE SELECTION${NC}"
     echo "1. 🔄  Auto-Restart Mode (🟢 Recommended)"
-    echo "2. 🎯  Single Run (Just Run Once)"
+    echo "2. 🎯  Single Run (Normally Run)"
     echo "3. 🧼  Fresh Start (Reinstall + Run)"
     echo -e "${YELLOW}===============================================================================${NC}"
     
