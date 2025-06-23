@@ -1,15 +1,26 @@
 #!/bin/bash
-set -e
+# set -e
 
-# Styling
-BOLD=$(tput bold)
-RED=$(tput setaf 1)
-GREEN=$(tput setaf 2)
-YELLOW=$(tput setaf 3)
-CYAN=$(tput setaf 6)
-BLUE=$(tput setaf 4)
-MAGENTA=$(tput setaf 5)
-NC=$(tput sgr0)
+# Check if terminal supports colors
+if [ -t 1 ] && [ -n "$(tput colors)" ] && [ "$(tput colors)" -ge 8 ]; then
+    BOLD=$(tput bold)
+    RED=$(tput setaf 1)
+    GREEN=$(tput setaf 2)
+    YELLOW=$(tput setaf 3)
+    CYAN=$(tput setaf 6)
+    BLUE=$(tput setaf 4)
+    MAGENTA=$(tput setaf 5)
+    NC=$(tput sgr0)
+else
+    BOLD=""
+    RED=""
+    GREEN=""
+    YELLOW=""
+    CYAN=""
+    BLUE=""
+    MAGENTA=""
+    NC=""
+fi
 
 # Paths
 SWARM_DIR="$HOME/rl-swarm"
@@ -20,7 +31,6 @@ DOWNGRADED_COMMIT="385e0b345aaa7a0a580cbec24aa4dbdb9dbd4642"
 
 # Global Variables
 REPO_URL="https://github.com/gensyn-ai/rl-swarm.git"
-BACKUP_DIR="$HOME/swarm_backups"
 KEEP_TEMP_DATA=true
 
 # Logging
@@ -39,7 +49,6 @@ log() {
 # Initialize
 init() {
     clear
-    mkdir -p "$(dirname "$LOG_FILE")" "$BACKUP_DIR"
     touch "$LOG_FILE"
     log "INFO" "=== HUSTLE AIRDROPS RL-SWARM MANAGER STARTED ==="
 }
@@ -94,7 +103,6 @@ install_deps() {
 # Swap Management
 manage_swap() {
     if [ ! -f "$SWAP_FILE" ]; then
-        log "INFO" "Creating 1GB swap file"
         sudo fallocate -l 1G "$SWAP_FILE" >/dev/null 2>&1
         sudo chmod 600 "$SWAP_FILE" >/dev/null 2>&1
         sudo mkswap "$SWAP_FILE" >/dev/null 2>&1
@@ -102,6 +110,15 @@ manage_swap() {
         echo "$SWAP_FILE none swap sw 0 0" | sudo tee -a /etc/fstab >/dev/null 2>&1
     fi
 }
+
+disable_swap() {
+    if [ -f "$SWAP_FILE" ]; then
+        sudo swapoff "$SWAP_FILE"
+        sudo rm -f "$SWAP_FILE"
+        sudo sed -i "\|$SWAP_FILE|d" /etc/fstab
+    fi
+}
+
 
 # Fixall Script
 run_fixall() {
@@ -112,36 +129,48 @@ run_fixall() {
     else
         echo -e "${RED}❌ Failed to apply fixes!${NC}"
     fi
-
     sleep 5
 }
-
 
 # Modify run script
 modify_run_script() {
     local run_script="$SWARM_DIR/run_rl_swarm.sh"
+
     if [ -f "$run_script" ]; then
-        if ! grep -q ': "${KEEP_TEMP_DATA:=true}"' "$run_script"; then
-            sudo sed -i '1a : "${KEEP_TEMP_DATA:=true}"' "$run_script"
-        fi
+        # 1. Preserve shebang line and remove old KEEP_TEMP_DATA definition
+        awk '
+        NR==1 && $0 ~ /^#!\/bin\/bash/ { print; next }
+        $0 !~ /^\s*: "\$\{KEEP_TEMP_DATA:=.*\}"/ { print }
+        ' "$run_script" > "$run_script.tmp" && mv "$run_script.tmp" "$run_script"
 
-        if ! grep -q 'if [ "\$KEEP_TEMP_DATA" != "true" ]; then' "$run_script"; then
-            perl -i -pe 's#rm -r \$ROOT_DIR/modal-login/temp-data/\*.json 2> /dev/null \|\| true#if [ "\$KEEP_TEMP_DATA" != "true" ]; then\n    rm -r \$ROOT_DIR/modal-login/temp-data/*.json 2> /dev/null \|\| true\nfi#' "$run_script"
-            log "INFO" "Modified temp data deletion logic in $run_script"
-        fi
+        # 2. Inject new KEEP_TEMP_DATA just after #!/bin/bash
+        sed -i '1a : "${KEEP_TEMP_DATA:='"$KEEP_TEMP_DATA"'}"' "$run_script"
 
+        # 3. Patch rm logic only if not already patched
+        if grep -q 'rm -r \$ROOT_DIR/modal-login/temp-data/\*\.json' "$run_script" && \
+           ! grep -q 'if \[ "\$KEEP_TEMP_DATA" != "true" \]; then' "$run_script"; then
+
+            perl -i -pe '
+                s#rm -r \$ROOT_DIR/modal-login/temp-data/\*\.json 2> /dev/null \|\| true#
+if [ "\$KEEP_TEMP_DATA" != "true" ]; then
+    rm -r \$ROOT_DIR/modal-login/temp-data/*.json 2> /dev/null || true
+fi#' "$run_script"
+        fi
     fi
 }
 
 fix_kill_command() {
     local run_script="$SWARM_DIR/run_rl_swarm.sh"
+
     if [ -f "$run_script" ]; then
-        if ! grep -q 'kill -TERM -- -$$ 2>/dev/null \|\| true' "$run_script"; then
-            sudo sed -i 's#kill -- -$$ || true#kill -TERM -- -$$ 2>/dev/null || true#' "$run_script"
-            log "INFO" "Fixed kill command in $run_script to suppress errors"
+        if grep -q 'kill -- -\$\$ || true' "$run_script"; then
+            perl -i -pe 's#kill -- -\$\$ \|\| true#kill -TERM -- -\$\$ 2>/dev/null || true#' "$run_script"
+            log "INFO" "✅ Fixed kill command in $run_script to suppress errors"
+        else
+            log "INFO" "ℹ️ Kill command already updated or not found"
         fi
     else
-        log "ERROR" "run_rl_swarm.sh not found at $run_script"
+        log "ERROR" "❌ run_rl_swarm.sh not found at $run_script"
     fi
 }
 
@@ -162,13 +191,6 @@ clone_repo() {
     fi
 }
 
-# Python Environment
-setup_python_env() {
-    cd "$SWARM_DIR"
-    python3 -m venv .venv >/dev/null 2>&1
-    source .venv/bin/activate
-    pip install -r requirements.txt >/dev/null 2>&1
-}
 
 create_default_config() {
     log "INFO" "Creating default config at $CONFIG_FILE"
@@ -183,46 +205,22 @@ EOF
     log "INFO" "Default config created"
 }
 
-# PEM Management
-manage_pem() {
-    if [ -f "$HOME/swarm.pem" ]; then
-        local timestamp=$(date +%Y%m%d_%H%M%S)
-        cp "$HOME/swarm.pem" "$BACKUP_DIR/swarm_$timestamp.pem"
-        log "INFO" "PEM backed up to $BACKUP_DIR/swarm_$timestamp.pem"
-        echo -e "\n${YELLOW}⚠️ Existing swarm.pem detected!${NC}"
-        echo "1. Keep and use existing PEM"
-        echo "2. Delete and generate new PEM"
-        echo "3. Cancel installation"
-        read -p "${BOLD}➡️ Choose action [1-3]: ${NC}" pem_choice
-        
-        case $pem_choice in
-            1) 
-                log "INFO" "Keeping existing PEM"
-                ;;
-            2)
-                rm -f "$HOME/swarm.pem"
-                log "INFO" "PEM deleted"
-                ;;
-            3)
-                log "INFO" "Installation canceled"
-                exit 0
-                ;;
-            *)
-                echo -e "${RED}❌ Invalid choice, keeping PEM${NC}"
-                ;;
-        esac
-    fi
-    
-    # Restore PEM to node directory
-    if [ -f "$HOME/swarm.pem" ]; then
-        cp "$HOME/swarm.pem" "$SWARM_DIR/swarm.pem"
-        chmod 600 "$SWARM_DIR/swarm.pem"
-        log "INFO" "PEM restored to node directory"
+fix_swarm_pem_permissions() {
+    local pem_file="$SWARM_DIR/swarm.pem"
+    if [ -f "$pem_file" ]; then
+        sudo chown "$(whoami)":"$(whoami)" "$pem_file"
+        sudo chmod 600 "$pem_file"
+        log "INFO" "✅ swarm.pem permissions fixed"
+    else
+        log "WARN" "⚠️ swarm.pem not found at $pem_file"
     fi
 }
 
+
 # Install Node
 install_node() {
+    set +m  
+
     show_header
     echo -e "${CYAN}${BOLD}INSTALLATION MENU${NC}"
     echo "1. Latest version"
@@ -240,7 +238,37 @@ install_node() {
     echo -e "\n${CYAN}Auto-login configuration:${NC}"
     echo "Preserve login data between sessions? (recommended for auto-login)"
     read -p "${BOLD}Enable auto-login? [Y/n]: ${NC}" auto_login
+
     KEEP_TEMP_DATA=$([[ "$auto_login" =~ ^[Nn]$ ]] && echo "false" || echo "true")
+    export KEEP_TEMP_DATA
+
+    # Handle swarm.pem from SWARM_DIR
+    if [ -f "$SWARM_DIR/swarm.pem" ]; then
+        echo -e "\n${YELLOW}⚠️ Existing swarm.pem detected in SWARM_DIR!${NC}"
+        echo "1. Keep and use existing PEM"
+        echo "2. Delete and generate new PEM"
+        echo "3. Cancel installation"
+        read -p "${BOLD}➡️ Choose action [1-3]: ${NC}" pem_choice
+
+        case $pem_choice in
+            1)
+                sudo cp "$SWARM_DIR/swarm.pem" "$HOME/swarm.pem"
+                log "INFO" "PEM copied from SWARM_DIR to HOME"
+                ;;
+            2)
+                sudo rm -rf "$HOME/swarm.pem"
+                log "INFO" "Old PEM deleted from SWARM_DIR"
+                ;;
+            3)
+                echo -e "${RED}❌ Installation cancelled by user.${NC}"
+                sleep 1
+                return
+                ;;
+            *)
+                echo -e "${RED}❌ Invalid choice. Continuing with existing PEM.${NC}"
+                ;;
+        esac
+    fi
 
     echo -e "\n${YELLOW}Starting installation...${NC}"
 
@@ -254,25 +282,26 @@ install_node() {
                 sleep 0.15
             done
         done
-        printf "\r$msg ✅ Done\n"
+        printf "\r$msg ✅ Done"; tput el; echo
     }
 
     ( install_deps ) & spinner $! "📦 Installing dependencies"
-    ( manage_swap ) & spinner $! "🔁 Managing swap space"
-    ( manage_pem ) & spinner $! "🔐 Handling swarm.pem"
     ( clone_repo "$version" ) & spinner $! "📥 Cloning $version repo"
-    ( setup_python_env ) & spinner $! "🐍 Setting up Python venv"
     ( modify_run_script ) & spinner $! "🧠 Modifying run script"
     ( run_fixall ) & spinner $! "🛠 Applying final fixes"
 
+    if [ -f "$HOME/swarm.pem" ]; then
+        sudo cp "$HOME/swarm.pem" "$SWARM_DIR/swarm.pem"
+        sudo chmod 600 "$SWARM_DIR/swarm.pem"
+    fi
+
     echo -e "\n${GREEN}✅ Installation completed!${NC}"
     echo -e "Auto-login: ${GREEN}$([ "$KEEP_TEMP_DATA" == "true" ] && echo "ENABLED" || echo "DISABLED")${NC}"
-    sleep 5
+    echo -e "${YELLOW}${BOLD}👉 Press Enter to return to the menu...${NC}"
+    read
+    sleep 1
 }
 
-
-# Run Node
-# Run Node
 # Run Node
 run_node() {
     show_header
@@ -309,26 +338,42 @@ run_node() {
     : "${KEEP_TEMP_DATA:=true}"
     export KEEP_TEMP_DATA
     modify_run_script
+    sudo chmod +x "$SWARM_DIR/run_rl_swarm.sh"
     fix_kill_command
     
     case $run_choice in
         1)
             log "INFO" "Starting node in auto-restart mode"
             cd "$SWARM_DIR"
+            fix_swarm_pem_permissions
+            manage_swap
+            python3 -m venv .venv
             source .venv/bin/activate
             while true; do
-                KEEP_TEMP_DATA="$KEEP_TEMP_DATA" ./run_rl_swarm.sh <<< "$TESTNET\n$SWARM\n$PARAM\n$PUSH" || {
-                    log "WARN" "Node crashed, restarting in 5 seconds..."
-                    echo -e "${YELLOW}⚠️ Node crashed. Restarting in 5 seconds...${NC}"
-                    sleep 5
-                }
+                KEEP_TEMP_DATA="$KEEP_TEMP_DATA" ./run_rl_swarm.sh <<EOF
+$TESTNET
+$SWARM
+$PARAM
+$PUSH
+EOF
+                log "WARN" "Node crashed, restarting in 5 seconds..."
+                echo -e "${YELLOW}⚠️ Node crashed. Restarting in 5 seconds...${NC}"
+                sleep 5
             done
             ;;
         2)
             log "INFO" "Starting node in single-run mode"
             cd "$SWARM_DIR"
+            fix_swarm_pem_permissions
+            manage_swap
+            python3 -m venv .venv
             source .venv/bin/activate
-            KEEP_TEMP_DATA="$KEEP_TEMP_DATA" ./run_rl_swarm.sh <<< "$TESTNET\n$SWARM\n$PARAM\n$PUSH"
+            KEEP_TEMP_DATA="$KEEP_TEMP_DATA" ./run_rl_swarm.sh <<EOF
+$TESTNET
+$SWARM
+$PARAM
+$PUSH
+EOF
             ;;
         3)
             log "INFO" "Starting fresh installation + run"
@@ -380,7 +425,6 @@ EOF
     sleep 5
 }
 
-
 # Reset Peer ID
 reset_peer() {
     echo -e "${RED}${BOLD}⚠️ WARNING: This will delete ALL node keys and data!${NC}"
@@ -423,8 +467,8 @@ main_menu() {
                 echo -e "\n${RED}${BOLD}⚠️ WARNING: This will delete ALL node data!${NC}"
                 read -p "${BOLD}Are you sure you want to continue? [y/N]: ${NC}" confirm
                 if [[ "$confirm" =~ ^[Yy]$ ]]; then
-                    rm -rf "$SWARM_DIR"
-                    rm -f ~/swarm.pem ~/userData.json ~/userApiKey.json
+                    sudo rm -rf "$SWARM_DIR"
+                    sudo rm -f ~/swarm.pem ~/userData.json ~/userApiKey.json
                     echo -e "${GREEN}✅ All node data deleted!${NC}"
 
                     echo -e "\n${YELLOW}➕ Do you want to reinstall the node now?${NC}"
@@ -450,8 +494,7 @@ main_menu() {
     done
 }
 
-
 # Initialize and start
 init
-trap "echo -e '\n${GREEN}✅ Stopped gracefully${NC}'; exit 0" SIGINT
+trap "echo -e '\n${GREEN}✅ Stopped gracefully${NC}'; disable_swap; return" SIGINT
 main_menu
