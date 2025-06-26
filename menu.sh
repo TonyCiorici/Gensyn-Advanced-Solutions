@@ -1,7 +1,6 @@
 #!/bin/bash
 # set -e
 
-# Check if terminal supports colors
 if [ -t 1 ] && [ -n "$(tput colors)" ] && [ "$(tput colors)" -ge 8 ]; then
     BOLD=$(tput bold)
     RED=$(tput setaf 1)
@@ -27,10 +26,9 @@ SWARM_DIR="$HOME/rl-swarm"
 CONFIG_FILE="$SWARM_DIR/.swarm_config"
 LOG_FILE="$HOME/swarm_log.txt"
 SWAP_FILE="/swapfile"
-DOWNGRADED_COMMIT="385e0b345aaa7a0a580cbec24aa4dbdb9dbd4642"
+REPO_URL="https://github.com/gensyn-ai/rl-swarm.git"
 
 # Global Variables
-REPO_URL="https://github.com/gensyn-ai/rl-swarm.git"
 KEEP_TEMP_DATA=true
 
 # Logging
@@ -119,7 +117,6 @@ disable_swap() {
     fi
 }
 
-
 # Fixall Script
 run_fixall() {
     echo -e "${CYAN}🔧 Applying comprehensive fixes...${NC}"
@@ -176,29 +173,15 @@ fix_kill_command() {
 
 # Clone Repository
 clone_repo() {
-    local version="$1"
     sudo rm -rf "$SWARM_DIR" 2>/dev/null
     git clone "$REPO_URL" "$SWARM_DIR" >/dev/null 2>&1
     cd "$SWARM_DIR"
-    
-    if [ "$version" == "downgraded" ]; then
-        git checkout "$DOWNGRADED_COMMIT" >/dev/null 2>&1
-        cd modal-login
-        yarn install >/dev/null 2>&1
-        yarn upgrade >/dev/null 2>&1
-        yarn add next@latest viem@latest >/dev/null 2>&1
-        cd ..
-    fi
 }
-
 
 create_default_config() {
     log "INFO" "Creating default config at $CONFIG_FILE"
     mkdir -p "$SWARM_DIR"
     cat <<EOF > "$CONFIG_FILE"
-TESTNET=Y
-SWARM=A
-PARAM=7
 PUSH=N
 EOF
     chmod 600 "$CONFIG_FILE"
@@ -216,25 +199,31 @@ fix_swarm_pem_permissions() {
     fi
 }
 
+auto_enter_inputs() {
+    # Simulate 'N' for pushing to Hugging Face
+    HF_TOKEN=${HF_TOKEN:-""}
+    if [ -n "${HF_TOKEN}" ]; then
+        HUGGINGFACE_ACCESS_TOKEN=${HF_TOKEN}
+    else
+        HUGGINGFACE_ACCESS_TOKEN="None"
+        echo -e "${GREEN}>> Would you like to push models you train in the RL swarm to the Hugging Face Hub? [y/N] N${NC}"
+        echo -e "${GREEN}>>> No answer was given, so NO models will be pushed to Hugging Face Hub${NC}"
+    fi
+
+    # Simulate Enter for MODEL_NAME
+    MODEL_NAME=""
+    echo -e "${GREEN}>> Enter the name of the model you want to use in huggingface repo/name format, or press [Enter] to use the default model.${NC}"
+    echo -e "${GREEN}>> Using default model from config${NC}"
+}
 
 # Install Node
 install_node() {
     set +m  
 
     show_header
-    echo -e "${CYAN}${BOLD}INSTALLATION MENU${NC}"
-    echo "1. Latest version"
-    echo "2. Downgraded version (recommended)"
+    echo -e "${CYAN}${BOLD}INSTALLATION${NC}"
     echo -e "${YELLOW}===============================================================================${NC}"
     
-    read -p "${BOLD}${YELLOW}➡️ Choose version [1-2]: ${NC}" version_choice
-    [[ ! "$version_choice" =~ ^[1-2]$ ]] && {
-        echo -e "${RED}❌ Invalid version choice!${NC}"
-        return 1
-    }
-
-    local version=$([ "$version_choice" == "1" ] && echo "latest" || echo "downgraded")
-
     echo -e "\n${CYAN}Auto-login configuration:${NC}"
     echo "Preserve login data between sessions? (recommended for auto-login)"
     read -p "${BOLD}Enable auto-login? [Y/n]: ${NC}" auto_login
@@ -286,7 +275,7 @@ install_node() {
     }
 
     ( install_deps ) & spinner $! "📦 Installing dependencies"
-    ( clone_repo "$version" ) & spinner $! "📥 Cloning $version repo"
+    ( clone_repo ) & spinner $! "📥 Cloning repo"
     ( modify_run_script ) & spinner $! "🧠 Modifying run script"
     ( run_fixall ) & spinner $! "🛠 Applying final fixes"
 
@@ -319,26 +308,23 @@ run_node() {
             sudo chmod 600 "$SWARM_DIR/swarm.pem"
         else
             echo -e "${RED}swarm.pem not found in HOME directory. Proceeding without it...${NC}"
-          
         fi
     fi
 
-    
     if [ -f "$CONFIG_FILE" ]; then
         source "$CONFIG_FILE"
         echo -e "\n${BOLD}${CYAN}⚙️  CURRENT CONFIGURATION${NC}"
         echo -e "${YELLOW}-------------------------------------------------${NC}"
-        echo -e "🔗 Testnet        : ${GREEN}$TESTNET${NC}"
-        echo -e "🧠 Swarm Type     : ${GREEN}$SWARM${NC}"
-        echo -e "📏 Parameter Size : ${GREEN}$PARAM${NC}"
         echo -e "🚀 Push to HF     : ${GREEN}$PUSH${NC}"
         echo -e "${YELLOW}-------------------------------------------------${NC}"
     else
-        echo -e "${RED}❗ No config found. Please update configuration first.${NC}"
-        update_config
+        echo -e "${RED}❗ No config found. Creating default...${NC}"
+        create_default_config
         source "$CONFIG_FILE"
     fi
     
+    auto_enter_inputs
+
     # Ensure KEEP_TEMP_DATA is set
     : "${KEEP_TEMP_DATA:=true}"
     export KEEP_TEMP_DATA
@@ -356,10 +342,8 @@ run_node() {
             source .venv/bin/activate
             while true; do
                 KEEP_TEMP_DATA="$KEEP_TEMP_DATA" ./run_rl_swarm.sh <<EOF
-$TESTNET
-$SWARM
-$PARAM
 $PUSH
+$MODEL_NAME
 EOF
                 log "WARN" "Node crashed, restarting in 5 seconds..."
                 echo -e "${YELLOW}⚠️ Node crashed. Restarting in 5 seconds...${NC}"
@@ -374,10 +358,8 @@ EOF
             python3 -m venv .venv
             source .venv/bin/activate
             KEEP_TEMP_DATA="$KEEP_TEMP_DATA" ./run_rl_swarm.sh <<EOF
-$TESTNET
-$SWARM
-$PARAM
 $PUSH
+$MODEL_NAME
 EOF
             ;;
         3)
@@ -390,44 +372,57 @@ EOF
     esac
 }
 
-# Update Configuration
-update_config() {
-    show_header
-    echo -e "${BOLD}${CYAN}⚙️  CURRENT CONFIGURATION${NC}"
+update_node() {
+    set +m  
 
-    if [ -f "$CONFIG_FILE" ]; then
-        source "$CONFIG_FILE"
-        echo -e "${YELLOW}-------------------------------------------------${NC}"
-        echo -e "🔗 Testnet        : ${GREEN}$TESTNET${NC}"
-        echo -e "🧠 Swarm Type     : ${GREEN}$SWARM${NC}"
-        echo -e "📏 Parameter Size : ${GREEN}$PARAM${NC}"
-        echo -e "🚀 Push to HF     : ${GREEN}$PUSH${NC}"
-        echo -e "${YELLOW}-------------------------------------------------${NC}"
-    else
-        echo -e "${RED}❗ No config found. Creating default...${NC}"
-        create_default_config
+    show_header
+    echo -e "${CYAN}${BOLD}INSTALLATION${NC}"
+    echo -e "${YELLOW}===============================================================================${NC}"
+    
+    echo -e "\n${CYAN}Auto-login configuration:${NC}"
+    echo "Preserve login data between sessions? (recommended for auto-login)"
+    read -p "${BOLD}Enable auto-login? [Y/n]: ${NC}" auto_login
+
+    KEEP_TEMP_DATA=$([[ "$auto_login" =~ ^[Nn]$ ]] && echo "false" || echo "true")
+    export KEEP_TEMP_DATA
+
+    # Handle swarm.pem from SWARM_DIR
+    if [ -f "$SWARM_DIR/swarm.pem" ]; then
+        echo -e "\n${YELLOW}⚠️ Existing swarm.pem detected in SWARM_DIR! Keeping and using existing Swarm.pem.${NC}"
+        sudo cp "$SWARM_DIR/swarm.pem" "$HOME/swarm.pem"
+        log "INFO" "PEM copied from SWARM_DIR to HOME"
     fi
 
-    echo -e "\n${BOLD}${MAGENTA}✏️  ENTER NEW VALUES (Press Enter to keep current):${NC}"
+    echo -e "\n${YELLOW}Starting installation...${NC}"
 
-    read -p "🧠 Swarm Type [A/B]: " new_swarm
-    read -p "📏 Parameter Size [0.5, 1.5, 7, 32, 72]: " new_param
+    spinner() {
+        local pid=$1
+        local msg="$2"
+        local spinstr="⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
+        while kill -0 "$pid" 2>/dev/null; do
+            for (( i=0; i<${#spinstr}; i++ )); do
+                printf "\r$msg ${spinstr:$i:1} "
+                sleep 0.15
+            done
+        done
+        printf "\r$msg ✅ Done"; tput el; echo
+    }
 
-    SWARM=${new_swarm:-$SWARM}
-    PARAM=${new_param:-$PARAM}
+    ( install_deps ) & spinner $! "📦 Installing dependencies"
+    ( clone_repo ) & spinner $! "📥 Cloning repo"
+    ( modify_run_script ) & spinner $! "🧠 Modifying run script"
+    ( run_fixall ) & spinner $! "🛠 Applying final fixes"
 
-    cat <<EOF > "$CONFIG_FILE"
-TESTNET=Y
-SWARM=$SWARM
-PARAM=$PARAM
-PUSH=N
-EOF
+    if [ -f "$HOME/swarm.pem" ]; then
+        sudo cp "$HOME/swarm.pem" "$SWARM_DIR/swarm.pem"
+        sudo chmod 600 "$SWARM_DIR/swarm.pem"
+    fi
 
-    echo -e "\n${GREEN}✅ Configuration updated successfully!${NC}"
-    echo -e "${YELLOW}-------------------------------------------------${NC}"
-    cat "$CONFIG_FILE"
-    echo -e "${YELLOW}-------------------------------------------------${NC}"
-    sleep 5
+    echo -e "\n${GREEN}✅ Installation completed!${NC}"
+    echo -e "Auto-login: ${GREEN}$([ "$KEEP_TEMP_DATA" == "true" ] && echo "ENABLED" || echo "DISABLED")${NC}"
+    echo -e "${YELLOW}${BOLD}👉 Press Enter to return to the menu...${NC}"
+    read
+    sleep 1
 }
 
 # Reset Peer ID
@@ -453,7 +448,7 @@ main_menu() {
         echo -e "${BOLD}${MAGENTA}==================== 🧠 GENSYN MAIN MENU ====================${NC}"
         echo "1. 🛠  Install/Reinstall Node"
         echo "2. 🚀 Run Node"
-        echo "3. ⚙️  Update Configuration"
+        echo "3. ⚙️  Update Node"
         echo "4. 🔧 Fix All Errors"
         echo "5. ♻️  Reset Peer ID"
         echo "6. 🗑️  Delete Everything & Start New"
@@ -465,7 +460,7 @@ main_menu() {
         case $choice in
             1) install_node ;;
             2) run_node ;;
-            3) update_config ;;
+            3) update_node ;;
             4) run_fixall ;;
             5) reset_peer ;;
             6)
@@ -501,5 +496,5 @@ main_menu() {
 
 # Initialize and start
 init
-trap "echo -e '\n${GREEN}✅ Stopped gracefully${NC}'; disable_swap; return" SIGINT
+trap "echo -e '\n${GREEN}✅ Stopped gracefully${NC}'; disable_swap; exit 0" SIGINT
 main_menu
