@@ -277,7 +277,6 @@ install_node() {
     ( install_deps ) & spinner $! "📦 Installing dependencies"
     ( clone_repo ) & spinner $! "📥 Cloning repo"
     ( modify_run_script ) & spinner $! "🧠 Modifying run script"
-    ( run_fixall ) & spinner $! "🛠 Applying final fixes"
 
     if [ -f "$HOME/swarm.pem" ]; then
         sudo cp "$HOME/swarm.pem" "$SWARM_DIR/swarm.pem"
@@ -410,7 +409,6 @@ update_node() {
     ( install_deps ) & spinner $! "📦 Installing dependencies"
     ( clone_repo ) & spinner $! "📥 Cloning repo"
     ( modify_run_script ) & spinner $! "🧠 Modifying run script"
-    ( run_fixall ) & spinner $! "🛠 Applying final fixes"
 
     if [ -f "$HOME/swarm.pem" ]; then
         sudo cp "$HOME/swarm.pem" "$SWARM_DIR/swarm.pem"
@@ -448,10 +446,9 @@ main_menu() {
         echo "1. 🛠  Install/Reinstall Node"
         echo "2. 🚀 Run Node"
         echo "3. ⚙️  Update Node"
-        echo "4. 🔧 Fix All Errors"
-        echo "5. ♻️  Reset Peer ID"
-        echo "6. 🗑️  Delete Everything & Start New"
-        echo "7. ❌ Exit"
+        echo "4. ♻️  Reset Peer ID"
+        echo "5. 🗑️  Delete Everything & Start New"
+        echo "6. ❌ Exit"
         echo -e "${GREEN}===============================================================================${NC}"
         
         read -p "${BOLD}${YELLOW}➡️ Select option [1-7]: ${NC}" choice
@@ -460,9 +457,8 @@ main_menu() {
             1) install_node ;;
             2) run_node ;;
             3) update_node ;;
-            4) run_fixall ;;
-            5) reset_peer ;;
-            6)
+            4) reset_peer ;;
+            5)
                 echo -e "\n${RED}${BOLD}⚠️ WARNING: This will delete ALL node data!${NC}"
                 read -p "${BOLD}Are you sure you want to continue? [y/N]: ${NC}" confirm
                 if [[ "$confirm" =~ ^[Yy]$ ]]; then
@@ -481,7 +477,7 @@ main_menu() {
                     echo -e "${YELLOW}⚠️ Operation canceled${NC}"
                 fi
                 ;;
-            7)
+            6)
                 echo -e "\n${GREEN}✅ Exiting... Thank you for using Hustle Manager!${NC}"
                 exit 0
                 ;;
