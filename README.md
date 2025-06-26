@@ -50,7 +50,7 @@ You'll see a menu like this:
 |--------|--------|
 | 🛠 **Install/Reinstall Node** | Installs or updates your node to the latest version. |
 | 🚀 **Run Node** | Starts your node (after setup/config). |
-| ⚙️ **Update Configuration** | Change node settings (model, params, etc). |
+| ⚙️ **Update Node** | Update Node |
 | 🔧 **Fix All Errors** | Auto-fix dependencies and common issues. |
 | ♻️ **Reset Peer ID** | Generates a new Peer ID for your node. |
 | 🗑️ **Delete Everything & Start New** | Wipes all data for a fresh start. |
