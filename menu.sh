@@ -386,7 +386,6 @@ update_node() {
     KEEP_TEMP_DATA=$([[ "$auto_login" =~ ^[Nn]$ ]] && echo "false" || echo "true")
     export KEEP_TEMP_DATA
 
-    # Handle swarm.pem from SWARM_DIR
     if [ -f "$SWARM_DIR/swarm.pem" ]; then
         echo -e "\n${YELLOW}⚠️ Existing swarm.pem detected in SWARM_DIR! Keeping and using existing Swarm.pem.${NC}"
         sudo cp "$SWARM_DIR/swarm.pem" "$HOME/swarm.pem"
