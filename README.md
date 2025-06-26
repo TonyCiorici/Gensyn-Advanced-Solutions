@@ -36,7 +36,7 @@ You'll see a menu like this:
 ==================== 🧠 GENSYN MAIN MENU ====================
 1. 🛠  Install/Reinstall Node
 2. 🚀 Run Node
-3. ⚙️  Update Configuration
+3. ⚙️  Update Node
 4. 🔧 Fix All Errors
 5. ♻️  Reset Peer ID
 6. 🗑️  Delete Everything & Start New
