@@ -96,3 +96,12 @@ After this, run your node again!
 - Double-check your credentials and network connection.
 
 ---
+### 8. 🟩 Stack Info True Error
+
+<img src="problems/problem8.jpg" width="500px" alt="StackInfo" />
+
+Add swap memory:
+```bash
+sed -i 's/extract_answer(completion)/extract_answer(completion) if completion else ""/g' genrl-swarm/src/genrl_swarm/examples/rgym/reward_utils.py
+```
+After this, run your node again!
