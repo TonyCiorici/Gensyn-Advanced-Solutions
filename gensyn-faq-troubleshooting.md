@@ -102,6 +102,6 @@ After this, run your node again!
 
 Add swap memory:
 ```bash
-sed -i 's/extract_answer(completion)/extract_answer(completion) if completion else ""/g' genrl-swarm/src/genrl_swarm/examples/rgym/reward_utils.py
+perl -i -pe 's/\bextract_answer\(completion\)(?! if completion else "")\b/extract_answer(completion) if completion else ""/g' genrl-swarm/src/genrl_swarm/examples/rgym/reward_utils.py
 ```
 After this, run your node again!
