@@ -71,31 +71,28 @@ show_header() {
 
 # Dependencies
 install_deps() {
-    sudo apt update >/dev/null 2>&1
-    sudo apt install -y \
-        python3 python3-venv python3-pip \
-        curl wget screen git lsof \
-        nodejs ufw yarn jq perl >/dev/null 2>&1
-    
-    # Node.js
+    sudo apt update -y >/dev/null 2>&1
+    sudo apt install -y python3 python3-venv python3-pip curl wget screen git lsof ufw jq perl gnupg >/dev/null 2>&1
+
+    # Node.js 20
     curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash - >/dev/null 2>&1
     sudo apt install -y nodejs >/dev/null 2>&1
-    
-    # Yarn
-    curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | sudo apt-key add - >/dev/null 2>&1
-    echo "deb https://dl.yarnpkg.com/debian/ stable main" | sudo tee /etc/apt/sources.list.d/yarn.list >/dev/null
-    sudo apt update >/dev/null 2>&1
+
+    # Yarn (modern key method)
+    curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | gpg --dearmor | sudo tee /etc/apt/trusted.gpg.d/yarn.gpg >/dev/null 2>&1
+    echo "deb https://dl.yarnpkg.com/debian/ stable main" | sudo tee /etc/apt/sources.list.d/yarn.list >/dev/null 2>&1
+    sudo apt update -y >/dev/null 2>&1
     sudo apt install -y yarn >/dev/null 2>&1
-    
+
     # Firewall
     sudo ufw allow 22 >/dev/null 2>&1
     sudo ufw allow 3000/tcp >/dev/null 2>&1
-    echo "y" | sudo ufw enable >/dev/null 2>&1
-    
+    sudo ufw --force enable >/dev/null 2>&1
+
     # Cloudflared
     wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
-    sudo dpkg -i cloudflared-linux-amd64.deb >/dev/null 2>&1 || sudo apt --fix-broken install -y >/dev/null 2>&1
-    rm -f cloudflared-linux-amd64.deb >/dev/null 2>&1
+    sudo dpkg -i cloudflared-linux-amd64.deb >/dev/null 2>&1 || sudo apt install -f -y >/dev/null 2>&1
+    rm -f cloudflared-linux-amd64.deb
 }
 
 # Swap Management
