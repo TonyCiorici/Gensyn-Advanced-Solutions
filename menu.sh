@@ -71,29 +71,35 @@ show_header() {
 
 # Dependencies
 install_deps() {
-    sudo apt update -y >/dev/null 2>&1
-    sudo apt install -y python3 python3-venv python3-pip curl wget screen git lsof ufw jq perl gnupg >/dev/null 2>&1
+    echo "🔄 Updating package list..."
+    sudo apt update -y
 
-    # Node.js 20
-    curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash - >/dev/null 2>&1
-    sudo apt install -y nodejs >/dev/null 2>&1
+    echo "📦 Installing essential packages..."
+    sudo apt install -y python3 python3-venv python3-pip curl wget screen git lsof ufw jq perl gnupg
 
-    # Yarn (modern key method)
-    curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | gpg --dearmor | sudo tee /etc/apt/trusted.gpg.d/yarn.gpg >/dev/null 2>&1
-    echo "deb https://dl.yarnpkg.com/debian/ stable main" | sudo tee /etc/apt/sources.list.d/yarn.list >/dev/null 2>&1
-    sudo apt update -y >/dev/null 2>&1
-    sudo apt install -y yarn >/dev/null 2>&1
+    echo "🟢 Installing Node.js 20..."
+    curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+    sudo apt install -y nodejs
 
-    # Firewall
-    sudo ufw allow 22 >/dev/null 2>&1
-    sudo ufw allow 3000/tcp >/dev/null 2>&1
-    sudo ufw --force enable >/dev/null 2>&1
+    echo "🧵 Installing Yarn..."
+    curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | gpg --dearmor | sudo tee /etc/apt/trusted.gpg.d/yarn.gpg
+    echo "deb https://dl.yarnpkg.com/debian/ stable main" | sudo tee /etc/apt/sources.list.d/yarn.list
+    sudo apt update -y
+    sudo apt install -y yarn
 
-    # Cloudflared
-    wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
-    sudo dpkg -i cloudflared-linux-amd64.deb >/dev/null 2>&1 || sudo apt install -f -y >/dev/null 2>&1
+    echo "🛡️ Setting up firewall..."
+    sudo ufw allow 22
+    sudo ufw allow 3000/tcp
+    sudo ufw enable
+
+    echo "🌩️ Installing Cloudflared..."
+    wget https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+    sudo dpkg -i cloudflared-linux-amd64.deb || sudo apt install -f
     rm -f cloudflared-linux-amd64.deb
+
+    echo "✅ All dependencies installed successfully!"
 }
+
 
 # Swap Management
 manage_swap() {
