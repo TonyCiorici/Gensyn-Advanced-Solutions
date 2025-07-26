@@ -35,11 +35,11 @@ You'll see a menu like this:
 ```text
 ==================== 🧠 GENSYN MAIN MENU ====================
 1. 🛠  Install/Reinstall Node
-2. 🚀 Run Node
+2. 🚀  Run Node
 3. ⚙️  Update Node
-4. 🔧 Fix All Errors
-5. ♻️  Reset Peer ID
-6. 🗑️  Delete Everything & Start New
+4. ♻️  Reset Peer ID
+5. 🗑️  Delete Everything & Start New
+6. 📉  Downgrade Version
 7. ❌ Exit
 =============================================================
 ```
@@ -51,9 +51,9 @@ You'll see a menu like this:
 | 🛠 **Install/Reinstall Node** | Installs or updates your node to the latest version. |
 | 🚀 **Run Node** | Starts your node (after setup/config). |
 | ⚙️ **Update Node** | Update Node |
-| 🔧 **Fix All Errors** | Auto-fix dependencies and common issues. |
 | ♻️ **Reset Peer ID** | Generates a new Peer ID for your node. |
 | 🗑️ **Delete Everything & Start New** | Wipes all data for a fresh start. |
+| 📉 **Downgrade Version** | Downgrade Node Version. |
 | ❌ **Exit** | Closes the menu. |
 
 ---
