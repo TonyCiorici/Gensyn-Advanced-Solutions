@@ -181,6 +181,13 @@ clone_repo() {
     cd "$SWARM_DIR"
 }
 
+clone_downgraded_repo() {
+    sudo rm -rf "$SWARM_DIR" 2>/dev/null
+    git clone "$REPO_URL" "$SWARM_DIR" >/dev/null 2>&1
+    cd "$SWARM_DIR"
+    git checkout 305d3f3227d9ca27f6b4127a5379fc6a40143525 >/dev/null 2>&1
+}
+
 create_default_config() {
     log "INFO" "Creating default config at $CONFIG_FILE"
     mkdir -p "$SWARM_DIR"
@@ -279,6 +286,80 @@ install_node() {
 
     ( install_deps ) & spinner $! "📦 Installing dependencies"
     ( clone_repo ) & spinner $! "📥 Cloning repo"
+    ( modify_run_script ) & spinner $! "🧠 Modifying run script"
+
+    if [ -f "$HOME/swarm.pem" ]; then
+        sudo cp "$HOME/swarm.pem" "$SWARM_DIR/swarm.pem"
+        sudo chmod 600 "$SWARM_DIR/swarm.pem"
+    fi
+
+    echo -e "\n${GREEN}✅ Installation completed!${NC}"
+    echo -e "Auto-login: ${GREEN}$([ "$KEEP_TEMP_DATA" == "true" ] && echo "ENABLED" || echo "DISABLED")${NC}"
+    echo -e "${YELLOW}${BOLD}👉 Press Enter to return to the menu...${NC}"
+    read
+    sleep 1
+}
+
+install_downgraded_node() {
+    set +m  
+
+    show_header
+    echo -e "${CYAN}${BOLD}INSTALLATION${NC}"
+    echo -e "${YELLOW}===============================================================================${NC}"
+    
+    echo -e "\n${CYAN}Auto-login configuration:${NC}"
+    echo "Preserve login data between sessions? (recommended for auto-login)"
+    read -p "${BOLD}Enable auto-login? [Y/n]: ${NC}" auto_login
+
+    KEEP_TEMP_DATA=$([[ "$auto_login" =~ ^[Nn]$ ]] && echo "false" || echo "true")
+    export KEEP_TEMP_DATA
+
+    # Handle swarm.pem from SWARM_DIR
+    if [ -f "$SWARM_DIR/swarm.pem" ]; then
+        echo -e "\n${YELLOW}⚠️ Existing swarm.pem detected in SWARM_DIR!${NC}"
+        echo "1. Keep and use existing Swarm.pem"
+        echo "2. Delete and generate new Swarm.pem"
+        echo "3. Cancel installation"
+        read -p "${BOLD}➡️ Choose action [1-3]: ${NC}" pem_choice
+
+        case $pem_choice in
+            1)
+                sudo cp "$SWARM_DIR/swarm.pem" "$HOME/swarm.pem"
+                log "INFO" "PEM copied from SWARM_DIR to HOME"
+
+                ;;
+            2)
+                sudo rm -rf "$HOME/swarm.pem"
+                log "INFO" "Old PEM deleted from SWARM_DIR"
+                ;;
+            3)
+                echo -e "${RED}❌ Installation cancelled by user.${NC}"
+                sleep 1
+                return
+                ;;
+            *)
+                echo -e "${RED}❌ Invalid choice. Continuing with existing PEM.${NC}"
+                ;;
+        esac
+    fi
+
+    echo -e "\n${YELLOW}Starting installation...${NC}"
+
+    spinner() {
+        local pid=$1
+        local msg="$2"
+        local spinstr="⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
+        while kill -0 "$pid" 2>/dev/null; do
+            for (( i=0; i<${#spinstr}; i++ )); do
+                printf "\r$msg ${spinstr:$i:1} "
+                sleep 0.15
+            done
+        done
+        printf "\r$msg ✅ Done"; tput el; echo
+    }
+
+    ( install_deps ) & spinner $! "📦 Installing dependencies"
+    ( clone_downgraded_repo ) & spinner $! "📥 Cloning repo"
     ( modify_run_script ) & spinner $! "🧠 Modifying run script"
 
     if [ -f "$HOME/swarm.pem" ]; then
@@ -447,11 +528,12 @@ main_menu() {
         show_header
         echo -e "${BOLD}${MAGENTA}==================== 🧠 GENSYN MAIN MENU ====================${NC}"
         echo "1. 🛠  Install/Reinstall Node"
-        echo "2. 🚀 Run Node"
+        echo "2. 🚀  Run Node"
         echo "3. ⚙️  Update Node"
         echo "4. ♻️  Reset Peer ID"
         echo "5. 🗑️  Delete Everything & Start New"
-        echo "6. ❌ Exit"
+        echo "6. 📉  Downgrade Version"
+        echo "7. ❌ Exit"
         echo -e "${GREEN}===============================================================================${NC}"
         
         read -p "${BOLD}${YELLOW}➡️ Select option [1-7]: ${NC}" choice
@@ -480,7 +562,8 @@ main_menu() {
                     echo -e "${YELLOW}⚠️ Operation canceled${NC}"
                 fi
                 ;;
-            6)
+            6) install_downgraded_node ;;
+            7)
                 echo -e "\n${GREEN}✅ Exiting... Thank you for using Hustle Manager!${NC}"
                 exit 0
                 ;;
