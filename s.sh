@@ -423,8 +423,8 @@ run_node() {
             manage_swap
             python3 -m venv .venv
             source .venv/bin/activate
+            install_python_packages
             while true; do
-                pip install --force-reinstall transformers==4.51.3 trl==0.19.1
                 KEEP_TEMP_DATA="$KEEP_TEMP_DATA" ./run_rl_swarm.sh <<EOF
 $PUSH
 $MODEL_NAME
@@ -441,6 +441,7 @@ EOF
             manage_swap
             python3 -m venv .venv
             source .venv/bin/activate
+            install_python_packages
             KEEP_TEMP_DATA="$KEEP_TEMP_DATA" ./run_rl_swarm.sh <<EOF
 $PUSH
 $MODEL_NAME
@@ -522,6 +523,17 @@ reset_peer() {
     fi
     sleep 5
 }
+
+install_python_packages() {
+    TRANSFORMERS_VERSION=$(pip show transformers 2>/dev/null | grep ^Version: | awk '{print $2}')
+    TRL_VERSION=$(pip show trl 2>/dev/null | grep ^Version: | awk '{print $2}')
+
+    if [ "$TRANSFORMERS_VERSION" != "4.51.3" ] || [ "$TRL_VERSION" != "0.19.1" ]; then
+        pip install --force-reinstall transformers==4.51.3 trl==0.19.1
+    fi
+    pip freeze | grep -E '^(transformers|trl)=='
+}
+
 
 # Main Menu
 main_menu() {
