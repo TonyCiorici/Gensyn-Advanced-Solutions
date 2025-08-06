@@ -254,8 +254,14 @@ EOF
     done
 }
 
-# Initialize and execute
+# Check if installed and execute
 init
 trap "echo -e '\n${GREEN}✅ Stopped gracefully${NC}'; exit 0" SIGINT
-install_node
-run_node
+if [ -d "$SWARM_DIR" ] && [ -f "$SWARM_DIR/run_rl_swarm.sh" ]; then
+    echo -e "${GREEN}✅ Node already installed, proceeding to run in auto-restart mode...${NC}"
+    run_node
+else
+    echo -e "${YELLOW}⚠️ Node not installed, performing installation...${NC}"
+    install_node
+    run_node
+fi
