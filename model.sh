@@ -56,7 +56,7 @@ show_header() {
     clear
     echo -e "${BLUE}${BOLD}"
     echo "┌───────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐"
-    echo "│  ██╗░░██╗██╗░░░██╗░██████╗████████╗██╗░░░░░███████╗  ░█████╗░██╗██████╗░██████╗░██████╗░░█████╗░██████╗░░██████╗  │"
+    echo "│  ██╗░░██╗██╗░░░██║░██████╗████████╗██╗░░░░░███████╗  ░█████╗░██╗██████╗░██████╗░██████╗░░█████╗░██████╗░░██████╗  │"
     echo "│  ██║░░██║██║░░░██║██╔════╝╚══██╔══╝██║░░░░░██╔════╝  ██╔══██╗██║██╔══██╗██╔══██╗██╔══██╗██╔══██╗██╔══██╗██╔════╝  │"
     echo "│  ███████║██║░░░██║╚█████╗░░░░██║░░░██║░░░░░█████╗░░  ███████║██║██████╔╝██║░░██║██████╔╝██║░░██║██████╔╝╚█████╗░  │"
     echo "│  ██╔══██║██║░░░██║░╚═══██╗░░░██║░░░██║░░░░░██╔══╝░░  ██╔══██║██║██╔══██╗██║░░██║██╔══██╗██║░░██║██╔═══╝░░╚═══██╗  │"
@@ -99,7 +99,6 @@ install_deps() {
 
     echo "✅ All dependencies installed successfully!"
 }
-
 
 # Swap Management
 manage_swap() {
@@ -149,7 +148,6 @@ modify_run_script() {
         # 3. Patch rm logic only if not already patched
         if grep -q 'rm -r \$ROOT_DIR/modal-login/temp-data/\*\.json' "$run_script" && \
            ! grep -q 'if \[ "\$KEEP_TEMP_DATA" != "true" \]; then' "$run_script"; then
-
             perl -i -pe '
                 s#rm -r \$ROOT_DIR/modal-login/temp-data/\*\.json 2> /dev/null \|\| true#
 if [ "\$KEEP_TEMP_DATA" != "true" ]; then
@@ -193,6 +191,7 @@ create_default_config() {
     mkdir -p "$SWARM_DIR"
     cat <<EOF > "$CONFIG_FILE"
 PUSH=N
+MODEL_NAME=nvidia/AceInstruct-1.5B
 EOF
     chmod 600 "$CONFIG_FILE"
     log "INFO" "Default config created"
@@ -220,10 +219,10 @@ auto_enter_inputs() {
         echo -e "${GREEN}>>> No answer was given, so NO models will be pushed to Hugging Face Hub${NC}"
     fi
 
-    # Simulate Enter for MODEL_NAME
-    MODEL_NAME="nvidia/AceInstruct-1.5B"
-    echo -e "${GREEN}>> Enter the name of the model you want to use in huggingface repo/name format, or press [Enter] to use the default model.${NC}"
-    echo -e "${GREEN}>> Using default model from config${NC}"
+    # Use MODEL_NAME from config or default to nvidia/AceInstruct-1.5B
+    MODEL_NAME=${MODEL_NAME:-"nvidia/AceInstruct-1.5B"}
+    echo -e "${GREEN}>> Using model: $MODEL_NAME${NC}"
+    log "INFO" "Using model: $MODEL_NAME"
 }
 
 # Install Node
@@ -241,7 +240,6 @@ install_node() {
     KEEP_TEMP_DATA=$([[ "$auto_login" =~ ^[Nn]$ ]] && echo "false" || echo "true")
     export KEEP_TEMP_DATA
 
-    # Handle swarm.pem from SWARM_DIR
     if [ -f "$SWARM_DIR/swarm.pem" ]; then
         echo -e "\n${YELLOW}⚠️ Existing swarm.pem detected in SWARM_DIR!${NC}"
         echo "1. Keep and use existing Swarm.pem"
@@ -314,7 +312,6 @@ install_downgraded_node() {
     KEEP_TEMP_DATA=$([[ "$auto_login" =~ ^[Nn]$ ]] && echo "false" || echo "true")
     export KEEP_TEMP_DATA
 
-    # Handle swarm.pem from SWARM_DIR
     if [ -f "$SWARM_DIR/swarm.pem" ]; then
         echo -e "\n${YELLOW}⚠️ Existing swarm.pem detected in SWARM_DIR!${NC}"
         echo "1. Keep and use existing Swarm.pem"
@@ -326,7 +323,6 @@ install_downgraded_node() {
             1)
                 sudo cp "$SWARM_DIR/swarm.pem" "$HOME/swarm.pem"
                 log "INFO" "PEM copied from SWARM_DIR to HOME"
-
                 ;;
             2)
                 sudo rm -rf "$HOME/swarm.pem"
@@ -399,6 +395,7 @@ run_node() {
         echo -e "\n${BOLD}${CYAN}⚙️  CURRENT CONFIGURATION${NC}"
         echo -e "${YELLOW}-------------------------------------------------${NC}"
         echo -e "🚀 Push to HF     : ${GREEN}$PUSH${NC}"
+        echo -e "🚀 Model Name     : ${GREEN}$MODEL_NAME${NC}"
         echo -e "${YELLOW}-------------------------------------------------${NC}"
     else
         echo -e "${RED}❗ No config found. Creating default...${NC}"
@@ -425,6 +422,7 @@ run_node() {
             source .venv/bin/activate
             install_python_packages
             while true; do
+                log "INFO" "Running with model: $MODEL_NAME"
                 KEEP_TEMP_DATA="$KEEP_TEMP_DATA" ./run_rl_swarm.sh <<EOF
 $PUSH
 $MODEL_NAME
@@ -442,6 +440,7 @@ EOF
             python3 -m venv .venv
             source .venv/bin/activate
             install_python_packages
+            log "INFO" "Running with model: $MODEL_NAME"
             KEEP_TEMP_DATA="$KEEP_TEMP_DATA" ./run_rl_swarm.sh <<EOF
 $PUSH
 $MODEL_NAME
@@ -533,7 +532,6 @@ install_python_packages() {
     fi
     pip freeze | grep -E '^(transformers|trl)=='
 }
-
 
 # Main Menu
 main_menu() {
