@@ -56,7 +56,7 @@ show_header() {
     clear
     echo -e "${BLUE}${BOLD}"
     echo "┌───────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐"
-    echo "│  ██╗░░██╗██╗░░░██╗░██████╗████████╗██╗░░░░░███████╗  ░█████╗░██╗██████╗░██████╗░██████╗░░█████╗░██████╗░░██████╗  │"
+    echo "│  ██╗░░██╗██╗░░░██║░██████╗████████╗██╗░░░░░███████╗  ░█████╗░██╗██████╗░██████╗░██████╗░░█████╗░██████╗░░██████╗  │"
     echo "│  ██║░░██║██║░░░██║██╔════╝╚══██╔══╝██║░░░░░██╔════╝  ██╔══██╗██║██╔══██╗██╔══██╗██╔══██╗██╔══██╗██╔══██╗██╔════╝  │"
     echo "│  ███████║██║░░░██║╚█████╗░░░░██║░░░██║░░░░░█████╗░░  ███████║██║██████╔╝██║░░██║██████╔╝██║░░██║██████╔╝╚█████╗░  │"
     echo "│  ██╔══██║██║░░░██║░╚═══██╗░░░██║░░░██║░░░░░██╔══╝░░  ██╔══██║██║██╔══██╗██║░░██║██╔══██╗██║░░██║██╔═══╝░░╚═══██╗  │"
@@ -99,7 +99,6 @@ install_deps() {
 
     echo "✅ All dependencies installed successfully!"
 }
-
 
 # Swap Management
 manage_swap() {
@@ -149,7 +148,6 @@ modify_run_script() {
         # 3. Patch rm logic only if not already patched
         if grep -q 'rm -r \$ROOT_DIR/modal-login/temp-data/\*\.json' "$run_script" && \
            ! grep -q 'if \[ "\$KEEP_TEMP_DATA" != "true" \]; then' "$run_script"; then
-
             perl -i -pe '
                 s#rm -r \$ROOT_DIR/modal-login/temp-data/\*\.json 2> /dev/null \|\| true#
 if [ "\$KEEP_TEMP_DATA" != "true" ]; then
@@ -193,6 +191,7 @@ create_default_config() {
     mkdir -p "$SWARM_DIR"
     cat <<EOF > "$CONFIG_FILE"
 PUSH=N
+MODEL_NAME=
 EOF
     chmod 600 "$CONFIG_FILE"
     log "INFO" "Default config created"
@@ -219,11 +218,70 @@ auto_enter_inputs() {
         echo -e "${GREEN}>> Would you like to push models you train in the RL swarm to the Hugging Face Hub? [y/N] N${NC}"
         echo -e "${GREEN}>>> No answer was given, so NO models will be pushed to Hugging Face Hub${NC}"
     fi
+}
 
-    # Simulate Enter for MODEL_NAME
-    MODEL_NAME=""
-    echo -e "${GREEN}>> Enter the name of the model you want to use in huggingface repo/name format, or press [Enter] to use the default model.${NC}"
-    echo -e "${GREEN}>> Using default model from config${NC}"
+# Change Configuration
+change_config() {
+    show_header
+    echo -e "${CYAN}${BOLD}⚙️ CHANGE CONFIGURATION${NC}"
+    echo -e "${YELLOW}===============================================================================${NC}"
+
+    if [ -f "$CONFIG_FILE" ]; then
+        source "$CONFIG_FILE"
+        echo -e "\n${BOLD}${CYAN}⚙️  CURRENT CONFIGURATION${NC}"
+        echo -e "${YELLOW}-------------------------------------------------${NC}"
+        echo -e "🚀 Push to HF     : ${GREEN}$PUSH${NC}"
+        echo -e "🧠 Model Name     : ${GREEN}${MODEL_NAME:-None}${NC}"
+        echo -e "${YELLOW}-------------------------------------------------${NC}"
+    else
+        echo -e "${RED}❗ No config found. Creating default...${NC}"
+        create_default_config
+        source "$CONFIG_FILE"
+    fi
+
+    echo -e "\n${CYAN}${BOLD}🧠 Model Selection:${NC}"
+    echo -e "${YELLOW}-------------------------------------------------${NC}"
+    printf "${BOLD}%-3s %-40s${NC}\n" "0." "None (default, assigned by hardware)"
+    printf "${BOLD}%-3s %-40s${NC}\n" "1." "Gensyn/Qwen2.5-0.5B-Instruct"
+    printf "${BOLD}%-3s %-40s${NC}\n" "2." "Qwen/Qwen3-0.6B"
+    printf "${BOLD}%-3s %-40s${NC}\n" "3." "nvidia/AceInstruct-1.5B"
+    printf "${BOLD}%-3s %-40s${NC}\n" "4." "dnotitia/Smoothie-Qwen3-1.7B"
+    printf "${BOLD}%-3s %-40s${NC}\n" "5." "Gensyn/Qwen2.5-1.5B-Instruct"
+    printf "${BOLD}%-3s %-40s${NC}\n" "6." "Custom model"
+    echo -e "${YELLOW}-------------------------------------------------${NC}"
+    read -p "$(echo -e "${BOLD}Choose model [0-6] (Enter = keep current: ${MODEL_NAME:-None}): ${NC}")" model_choice
+
+    if [ -n "$model_choice" ]; then
+        case $model_choice in
+            0) MODEL_NAME="" ;;
+            1) MODEL_NAME="Gensyn/Qwen2.5-0.5B-Instruct" ;;
+            2) MODEL_NAME="Qwen/Qwen3-0.6B" ;;
+            3) MODEL_NAME="nvidia/AceInstruct-1.5B" ;;
+            4) MODEL_NAME="dnotitia/Smoothie-Qwen3-1.7B" ;;
+            5) MODEL_NAME="Gensyn/Qwen2.5-1.5B-Instruct" ;;
+            6) read -p "Enter custom model (repo/name): " MODEL_NAME ;;
+            *) echo -e "${RED}❌ Invalid choice. Keeping current config.${NC}"; MODEL_NAME="${MODEL_NAME:-}" ;;
+        esac
+        sed -i "s|^MODEL_NAME=.*|MODEL_NAME=$MODEL_NAME|" "$CONFIG_FILE"
+        echo -e "${GREEN}✅ Model updated to: ${MODEL_NAME:-None}${NC}"
+    else
+        echo -e "${CYAN}ℹ️ Model selection unchanged.${NC}"
+    fi
+
+    echo -e "\n${CYAN}${BOLD}🚀 Push to Hugging Face:${NC}"
+    read -p "${BOLD}Push models to Hugging Face Hub? [y/N]: ${NC}" push_choice
+    if [ -n "$push_choice" ]; then
+        PUSH=$([[ "$push_choice" =~ ^[Yy]$ ]] && echo "Y" || echo "N")
+        sed -i "s/^PUSH=.*/PUSH=$PUSH/" "$CONFIG_FILE"
+        echo -e "${GREEN}✅ Push to HF updated to: $PUSH${NC}"
+    else
+        echo -e "${CYAN}ℹ️ Push setting unchanged.${NC}"
+    fi
+
+    echo -e "\n${GREEN}✅ Configuration updated!${NC}"
+    echo -e "${YELLOW}${BOLD}👉 Press Enter to return to the menu...${NC}"
+    read
+    sleep 1
 }
 
 # Install Node
@@ -326,7 +384,6 @@ install_downgraded_node() {
             1)
                 sudo cp "$SWARM_DIR/swarm.pem" "$HOME/swarm.pem"
                 log "INFO" "PEM copied from SWARM_DIR to HOME"
-
                 ;;
             2)
                 sudo rm -rf "$HOME/swarm.pem"
@@ -399,6 +456,7 @@ run_node() {
         echo -e "\n${BOLD}${CYAN}⚙️  CURRENT CONFIGURATION${NC}"
         echo -e "${YELLOW}-------------------------------------------------${NC}"
         echo -e "🚀 Push to HF     : ${GREEN}$PUSH${NC}"
+        echo -e "🧠 Model Name     : ${GREEN}${MODEL_NAME:-None}${NC}"
         echo -e "${YELLOW}-------------------------------------------------${NC}"
     else
         echo -e "${RED}❗ No config found. Creating default...${NC}"
@@ -406,6 +464,38 @@ run_node() {
         source "$CONFIG_FILE"
     fi
     
+    echo -e "${CYAN}${BOLD}🧠 Model Selection:${NC}"
+    echo -e "${YELLOW}-------------------------------------------------${NC}"
+    printf "${BOLD}%-3s %-40s${NC}\n" "0." "None (default, assigned by hardware)"
+    printf "${BOLD}%-3s %-40s${NC}\n" "1." "Gensyn/Qwen2.5-0.5B-Instruct"
+    printf "${BOLD}%-3s %-40s${NC}\n" "2." "Qwen/Qwen3-0.6B"
+    printf "${BOLD}%-3s %-40s${NC}\n" "3." "nvidia/AceInstruct-1.5B"
+    printf "${BOLD}%-3s %-40s${NC}\n" "4." "dnotitia/Smoothie-Qwen3-1.7B"
+    printf "${BOLD}%-3s %-40s${NC}\n" "5." "Gensyn/Qwen2.5-1.5B-Instruct"
+    printf "${BOLD}%-3s %-40s${NC}\n" "6." "Custom model"
+    echo -e "${YELLOW}-------------------------------------------------${NC}"
+    read -p "$(echo -e "${BOLD}Choose model [0-6] (Enter = keep current: ${MODEL_NAME:-None}): ${NC}")" model_choice
+
+    if [ -n "$model_choice" ]; then
+        case $model_choice in
+            0) MODEL_NAME="" ;;
+            1) MODEL_NAME="Gensyn/Qwen2.5-0.5B-Instruct" ;;
+            2) MODEL_NAME="Qwen/Qwen3-0.6B" ;;
+            3) MODEL_NAME="nvidia/AceInstruct-1.5B" ;;
+            4) MODEL_NAME="dnotitia/Smoothie-Qwen3-1.7B" ;;
+            5) MODEL_NAME="Gensyn/Qwen2.5-1.5B-Instruct" ;;
+            6) read -p "Enter custom model (repo/name): " MODEL_NAME ;;
+            *) echo -e "${RED}❌ Invalid choice. Using current config.${NC}"; MODEL_NAME="${MODEL_NAME:-}" ;;
+        esac
+        sed -i "s/^MODEL_NAME=.*/MODEL_NAME=$MODEL_NAME/" "$CONFIG_FILE"
+    fi
+
+    if [ -n "$MODEL_NAME" ]; then
+        echo -e "${GREEN}>> Using selected model: $MODEL_NAME${NC}"
+    else
+        echo -e "${GREEN}>> Using default model assignment.${NC}"
+    fi
+
     auto_enter_inputs
 
     # Ensure KEEP_TEMP_DATA is set
@@ -534,7 +624,6 @@ install_python_packages() {
     pip freeze | grep -E '^(transformers|trl)=='
 }
 
-
 # Main Menu
 main_menu() {
     while true; do
@@ -546,10 +635,11 @@ main_menu() {
         echo "4. ♻️  Reset Peer ID"
         echo "5. 🗑️  Delete Everything & Start New"
         echo "6. 📉  Downgrade Version"
-        echo "7. ❌ Exit"
+        echo "7. ⚙️  Change Configuration"
+        echo "8. ❌ Exit"
         echo -e "${GREEN}===============================================================================${NC}"
         
-        read -p "${BOLD}${YELLOW}➡️ Select option [1-7]: ${NC}" choice
+        read -p "${BOLD}${YELLOW}➡️ Select option [1-8]: ${NC}" choice
         
         case $choice in
             1) install_node ;;
@@ -576,7 +666,8 @@ main_menu() {
                 fi
                 ;;
             6) install_downgraded_node ;;
-            7)
+            7) change_config ;;
+            8)
                 echo -e "\n${GREEN}✅ Exiting... Thank you for using Hustle Manager!${NC}"
                 exit 0
                 ;;
