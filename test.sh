@@ -454,7 +454,7 @@ run_node() {
         echo -e "\n${BOLD}${CYAN}⚙️  CURRENT CONFIGURATION${NC}"
         echo -e "${YELLOW}-------------------------------------------------${NC}"
         echo -e "🚀 Push to HF     : ${GREEN}$PUSH${NC}"
-        echo -e "🧠 Model Name     : ${ GREEN}${MODEL_NAME:-None}${NC}"
+        echo -e "🧠 Model Name     : ${GREEN}${MODEL_NAME:-None}${NC}"
         echo -e "${YELLOW}-------------------------------------------------${NC}"
     else
         echo -e "${RED}❗ No config found. Creating default...${NC}"
