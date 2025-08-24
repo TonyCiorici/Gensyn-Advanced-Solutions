@@ -635,11 +635,10 @@ main_menu() {
         echo "4. ♻️  Reset Peer ID"
         echo "5. 🗑️  Delete Everything & Start New"
         echo "6. 📉  Downgrade Version"
-        echo "7. ⚙️  Change Configuration"
-        echo "8. ❌ Exit"
+        echo "7. ❌ Exit"
         echo -e "${GREEN}===============================================================================${NC}"
         
-        read -p "${BOLD}${YELLOW}➡️ Select option [1-8]: ${NC}" choice
+        read -p "${BOLD}${YELLOW}➡️ Select option [1-7]: ${NC}" choice
         
         case $choice in
             1) install_node ;;
@@ -666,8 +665,7 @@ main_menu() {
                 fi
                 ;;
             6) install_downgraded_node ;;
-            7) change_config ;;
-            8)
+            7)
                 echo -e "\n${GREEN}✅ Exiting... Thank you for using Hustle Manager!${NC}"
                 exit 0
                 ;;
