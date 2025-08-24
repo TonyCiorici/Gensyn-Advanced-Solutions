@@ -21,7 +21,7 @@ else
     NC=""
 fi
 
-# Paths
+# Paths AAAAAAAAAAAAAAA
 SWARM_DIR="$HOME/rl-swarm"
 CONFIG_FILE="$SWARM_DIR/.swarm_config"
 LOG_FILE="$HOME/swarm_log.txt"
@@ -223,14 +223,14 @@ auto_enter_inputs() {
 # Change Configuration
 change_config() {
     show_header
-    echo -e "${CYAN}${BOLD}⚙️ CHANGE CONFIGURATION${NC}"
+    echo -e "\n${CYAN}${BOLD}⚙️ CHANGE CONFIGURATION${NC}"
     echo -e "${YELLOW}===============================================================================${NC}"
 
     if [ -f "$CONFIG_FILE" ]; then
         source "$CONFIG_FILE"
         echo -e "\n${BOLD}${CYAN}⚙️  CURRENT CONFIGURATION${NC}"
         echo -e "${YELLOW}-------------------------------------------------${NC}"
-        echo -e "🚀 Push to HF     : ${GREEN}$PUSH${NC}"
+        echo -e "🚀 Push to HF     : ${RED}N (fixed)${NC}"
         echo -e "🧠 Model Name     : ${GREEN}${MODEL_NAME:-None}${NC}"
         echo -e "${YELLOW}-------------------------------------------------${NC}"
     else
@@ -239,15 +239,18 @@ change_config() {
         source "$CONFIG_FILE"
     fi
 
-    echo -e "\n${CYAN}${BOLD}🧠 Model Selection:${NC}"
-    echo "0. None (default, assigned based on hardware)"
-    echo "1. Gensyn/Qwen2.5-0.5B-Instruct"
-    echo "2. Qwen/Qwen3-0.6B"
-    echo "3. nvidia/AceInstruct-1.5B"
-    echo "4. dnotitia/Smoothie-Qwen3-1.7B"
-    echo "5. Gensyn/Qwen2.5-1.5B-Instruct"
-    echo "6. Custom model"
-    read -p "${BOLD}Choose model [0-6] (or press Enter to keep current: ${MODEL_NAME:-None}): ${NC}" model_choice
+    echo -e "\n${CYAN}${BOLD}🧠 Select a Model:${NC}"
+    echo -e "${YELLOW}-------------------------------------------------${NC}"
+    echo -e " ${BOLD}0.${NC} ${WHITE}None${NC} (default, auto-selected based on hardware)"
+    echo -e " ${BOLD}1.${NC} ${GREEN}Gensyn/Qwen2.5-0.5B-Instruct${NC}"
+    echo -e " ${BOLD}2.${NC} ${GREEN}Qwen/Qwen3-0.6B${NC}"
+    echo -e " ${BOLD}3.${NC} ${GREEN}nvidia/AceInstruct-1.5B${NC}"
+    echo -e " ${BOLD}4.${NC} ${GREEN}dnotitia/Smoothie-Qwen3-1.7B${NC}"
+    echo -e " ${BOLD}5.${NC} ${GREEN}Gensyn/Qwen2.5-1.5B-Instruct${NC}"
+    echo -e " ${BOLD}6.${NC} ${MAGENTA}Custom model (enter repo/name)${NC}"
+    echo -e "${YELLOW}-------------------------------------------------${NC}"
+
+    read -p "$(echo -e ${BOLD}"👉 Choose model [0-6] (current: ${MODEL_NAME:-None}): "${NC})" model_choice
 
     if [ -n "$model_choice" ]; then
         case $model_choice in
@@ -257,30 +260,24 @@ change_config() {
             3) MODEL_NAME="nvidia/AceInstruct-1.5B" ;;
             4) MODEL_NAME="dnotitia/Smoothie-Qwen3-1.7B" ;;
             5) MODEL_NAME="Gensyn/Qwen2.5-1.5B-Instruct" ;;
-            6) read -p "Enter custom model (repo/name): " MODEL_NAME ;;
+            6) read -p "🔹 Enter custom model (repo/name): " MODEL_NAME ;;
             *) echo -e "${RED}❌ Invalid choice. Keeping current config.${NC}"; MODEL_NAME="${MODEL_NAME:-}" ;;
         esac
-        sed -i "s|^MODEL_NAME=.*|MODEL_NAME=$MODEL_NAME|" "$CONFIG_FILE"
-        echo -e "${GREEN}✅ Model updated to: ${MODEL_NAME:-None}${NC}"
+        sed -i "s|^MODEL_NAME=.*|MODEL_NAME=\"$MODEL_NAME\"|" "$CONFIG_FILE"
+        echo -e "${GREEN}✅ Model updated to: ${BOLD}${MODEL_NAME:-None}${NC}"
     else
         echo -e "${CYAN}ℹ️ Model selection unchanged.${NC}"
     fi
 
-    echo -e "\n${CYAN}${BOLD}🚀 Push to Hugging Face:${NC}"
-    read -p "${BOLD}Push models to Hugging Face Hub? [y/N]: ${NC}" push_choice
-    if [ -n "$push_choice" ]; then
-        PUSH=$([[ "$push_choice" =~ ^[Yy]$ ]] && echo "Y" || echo "N")
-        sed -i "s/^PUSH=.*/PUSH=$PUSH/" "$CONFIG_FILE"
-        echo -e "${GREEN}✅ Push to HF updated to: $PUSH${NC}"
-    else
-        echo -e "${CYAN}ℹ️ Push setting unchanged.${NC}"
-    fi
+    PUSH="N"
+    sed -i "s|^PUSH=.*|PUSH=\"$PUSH\"|" "$CONFIG_FILE"
 
-    echo -e "\n${GREEN}✅ Configuration updated!${NC}"
+    echo -e "\n${GREEN}✅ Configuration updated! (Push to HF fixed as N)${NC}"
     echo -e "${YELLOW}${BOLD}👉 Press Enter to return to the menu...${NC}"
     read
     sleep 1
 }
+
 
 # Install Node
 install_node() {
@@ -432,28 +429,31 @@ install_downgraded_node() {
 # Run Node
 run_node() {
     show_header
-    echo -e "${CYAN}${BOLD}🚀 RUN MODE SELECTION${NC}"
-    echo "1. 🔄  Auto-Restart Mode (🟢 Recommended)"
-    echo "2. 🎯  Single Run (Normally Run)"
-    echo "3. 🧼  Fresh Start (Reinstall + Run)"
+    echo -e "\n${CYAN}${BOLD}🚀 RUN MODE SELECTION${NC}"
+    echo -e "${YELLOW}===============================================================================${NC}"
+    echo -e " ${BOLD}1.${NC} 🔄  Auto-Restart Mode (🟢 Recommended)"
+    echo -e " ${BOLD}2.${NC} 🎯  Single Run (Normally Run)"
+    echo -e " ${BOLD}3.${NC} 🧼  Fresh Start (Reinstall + Run)"
     echo -e "${YELLOW}===============================================================================${NC}"
     
-    read -p "${BOLD}${YELLOW}➡️ Choose run mode [1-3]: ${NC}" run_choice
+    read -p "$(echo -e ${BOLD}${YELLOW}'➡️ Choose run mode [1-3]: '${NC})" run_choice
     
+    # swarm.pem check
     if [ ! -f "$SWARM_DIR/swarm.pem" ]; then
         if [ -f "$HOME/swarm.pem" ]; then
             sudo cp "$HOME/swarm.pem" "$SWARM_DIR/swarm.pem"
             sudo chmod 600 "$SWARM_DIR/swarm.pem"
         else
-            echo -e "${RED}swarm.pem not found in HOME directory. Proceeding without it...${NC}"
+            echo -e "${RED}❌ swarm.pem not found in HOME directory. Proceeding without it...${NC}"
         fi
     fi
 
+    # Load config
     if [ -f "$CONFIG_FILE" ]; then
         source "$CONFIG_FILE"
-        echo -e "\n${BOLD}${CYAN}⚙️  CURRENT CONFIGURATION${NC}"
+        echo -e "\n${BOLD}${CYAN}⚙️ CURRENT CONFIGURATION${NC}"
         echo -e "${YELLOW}-------------------------------------------------${NC}"
-        echo -e "🚀 Push to HF     : ${GREEN}$PUSH${NC}"
+        echo -e "🚀 Push to HF     : ${RED}N (fixed)${NC}"
         echo -e "🧠 Model Name     : ${GREEN}${MODEL_NAME:-None}${NC}"
         echo -e "${YELLOW}-------------------------------------------------${NC}"
     else
@@ -462,34 +462,43 @@ run_node() {
         source "$CONFIG_FILE"
     fi
     
-    echo -e "${CYAN}${BOLD}🧠 Model Selection:${NC}"
-    echo "0. None (default, assigned based on hardware)"
-    echo "1. Gensyn/Qwen2.5-0.5B-Instruct"
-    echo "2. Qwen/Qwen3-0.6B"
-    echo "3. nvidia/AceInstruct-1.5B"
-    echo "4. dnotitia/Smoothie-Qwen3-1.7B"
-    echo "5. Gensyn/Qwen2.5-1.5B-Instruct"
-    echo "6. Custom model"
-    read -p "${BOLD}Choose model [0-6] (or press Enter for current config: ${MODEL_NAME:-None}): ${NC}" model_choice
+    # Model selection only if MODEL_NAME empty
+    if [ -z "$MODEL_NAME" ]; then
+        echo -e "\n${CYAN}${BOLD}🧠 Select a Model:${NC}"
+        echo -e "${YELLOW}-------------------------------------------------${NC}"
+        echo -e " ${BOLD}0.${NC} ${WHITE}None${NC} (default, auto-selected based on hardware)"
+        echo -e " ${BOLD}1.${NC} ${GREEN}Gensyn/Qwen2.5-0.5B-Instruct${NC}"
+        echo -e " ${BOLD}2.${NC} ${GREEN}Qwen/Qwen3-0.6B${NC}"
+        echo -e " ${BOLD}3.${NC} ${GREEN}nvidia/AceInstruct-1.5B${NC}"
+        echo -e " ${BOLD}4.${NC} ${GREEN}dnotitia/Smoothie-Qwen3-1.7B${NC}"
+        echo -e " ${BOLD}5.${NC} ${GREEN}Gensyn/Qwen2.5-1.5B-Instruct${NC}"
+        echo -e " ${BOLD}6.${NC} ${MAGENTA}Custom model${NC}"
+        echo -e "${YELLOW}-------------------------------------------------${NC}"
 
-    if [ -n "$model_choice" ]; then
-        case $model_choice in
-            0) MODEL_NAME="" ;;
-            1) MODEL_NAME="Gensyn/Qwen2.5-0.5B-Instruct" ;;
-            2) MODEL_NAME="Qwen/Qwen3-0.6B" ;;
-            3) MODEL_NAME="nvidia/AceInstruct-1.5B" ;;
-            4) MODEL_NAME="dnotitia/Smoothie-Qwen3-1.7B" ;;
-            5) MODEL_NAME="Gensyn/Qwen2.5-1.5B-Instruct" ;;
-            6) read -p "Enter custom model (repo/name): " MODEL_NAME ;;
-            *) echo -e "${RED}❌ Invalid choice. Using current config.${NC}"; MODEL_NAME="${MODEL_NAME:-}" ;;
-        esac
-        sed -i "s/^MODEL_NAME=.*/MODEL_NAME=$MODEL_NAME/" "$CONFIG_FILE"
+        read -p "$(echo -e ${BOLD}'👉 Choose model [0-6] (default: None): '${NC})" model_choice
+
+        if [ -n "$model_choice" ]; then
+            case $model_choice in
+                0) MODEL_NAME="" ;;
+                1) MODEL_NAME="Gensyn/Qwen2.5-0.5B-Instruct" ;;
+                2) MODEL_NAME="Qwen/Qwen3-0.6B" ;;
+                3) MODEL_NAME="nvidia/AceInstruct-1.5B" ;;
+                4) MODEL_NAME="dnotitia/Smoothie-Qwen3-1.7B" ;;
+                5) MODEL_NAME="Gensyn/Qwen2.5-1.5B-Instruct" ;;
+                6) read -p "🔹 Enter custom model: " MODEL_NAME ;;
+                *) echo -e "${RED}❌ Invalid choice. Using default.${NC}" ; MODEL_NAME="" ;;
+            esac
+            sed -i "s|^MODEL_NAME=.*|MODEL_NAME=$MODEL_NAME|" "$CONFIG_FILE"
+        fi
+    else
+        echo -e "\n${GREEN}✅ Using configured model: ${BOLD}$MODEL_NAME${NC}"
     fi
 
+    # Final confirmation
     if [ -n "$MODEL_NAME" ]; then
-        echo -e "${GREEN}>> Using selected model: $MODEL_NAME${NC}"
+        echo -e "${GREEN}>> Running with model: $MODEL_NAME${NC}"
     else
-        echo -e "${GREEN}>> Using default model assignment.${NC}"
+        echo -e "${CYAN}>> Running with default model assignment.${NC}"
     fi
 
     auto_enter_inputs
@@ -512,7 +521,6 @@ run_node() {
             install_python_packages
             while true; do
                 KEEP_TEMP_DATA="$KEEP_TEMP_DATA" ./run_rl_swarm.sh <<EOF
-$PUSH
 $MODEL_NAME
 EOF
                 log "WARN" "Node crashed, restarting in 5 seconds..."
@@ -529,7 +537,6 @@ EOF
             source .venv/bin/activate
             install_python_packages
             KEEP_TEMP_DATA="$KEEP_TEMP_DATA" ./run_rl_swarm.sh <<EOF
-$PUSH
 $MODEL_NAME
 EOF
             ;;
@@ -542,6 +549,7 @@ EOF
             ;;
     esac
 }
+
 
 update_node() {
     set +m  
