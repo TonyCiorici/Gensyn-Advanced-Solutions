@@ -260,7 +260,7 @@ change_config() {
             6) read -p "Enter custom model (repo/name): " MODEL_NAME ;;
             *) echo -e "${RED}❌ Invalid choice. Keeping current config.${NC}"; MODEL_NAME="${MODEL_NAME:-}" ;;
         esac
-        sed -i "s/^MODEL_NAME=.*/MODEL_NAME=$MODEL_NAME/" "$CONFIG_FILE"
+        sed -i "s|^MODEL_NAME=.*|MODEL_NAME=$MODEL_NAME|" "$CONFIG_FILE"
         echo -e "${GREEN}✅ Model updated to: ${MODEL_NAME:-None}${NC}"
     else
         echo -e "${CYAN}ℹ️ Model selection unchanged.${NC}"
