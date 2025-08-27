@@ -13,7 +13,7 @@ if [ -t 1 ] && [ -n "$(tput colors)" ] && [ "$(tput colors)" -ge 8 ]; then
 else
     BOLD=""
     RED=""
-    GREEN=""
+    GREEN?!
     YELLOW=""
     CYAN=""
     BLUE=""
@@ -192,6 +192,7 @@ create_default_config() {
     cat <<EOF > "$CONFIG_FILE"
 PUSH=N
 MODEL_NAME=
+PARTICIPATE_AI_MARKET=Y
 EOF
     chmod 600 "$CONFIG_FILE"
     log "INFO" "Default config created"
@@ -218,6 +219,14 @@ auto_enter_inputs() {
         echo -e "${GREEN}>> Would you like to push models you train in the RL swarm to the Hugging Face Hub? [y/N] N${NC}"
         echo -e "${GREEN}>>> No answer was given, so NO models will be pushed to Hugging Face Hub${NC}"
     fi
+
+    # Handle AI Prediction Market participation
+    if [ -n "$PARTICIPATE_AI_MARKET" ]; then
+        echo -e "${GREEN}>> Would you like your model to participate in the AI Prediction Market? [Y/n] $PARTICIPATE_AI_MARKET${NC}"
+    else
+        PARTICIPATE_AI_MARKET="Y"
+        echo -e "${GREEN}>> Would you like your model to participate in the AI Prediction Market? [Y/n] Y${NC}"
+    fi
 }
 
 # Change Configuration
@@ -230,8 +239,9 @@ change_config() {
         source "$CONFIG_FILE"
         echo -e "\n${BOLD}${CYAN}⚙️  CURRENT CONFIGURATION${NC}"
         echo -e "${YELLOW}-------------------------------------------------${NC}"
-        echo -e "🚀 Push to HF     : ${GREEN}$PUSH${NC}"
-        echo -e "🧠 Model Name     : ${GREEN}${MODEL_NAME:-None}${NC}"
+        echo -e "🚀 Push to HF              : ${GREEN}$PUSH${NC}"
+        echo -e "🧠 Model Name              : ${GREEN}${MODEL_NAME:-None}${NC}"
+        echo -e "📈 Participate AI Market   : ${GREEN}$PARTICIPATE_AI_MARKET${NC}"
         echo -e "${YELLOW}-------------------------------------------------${NC}"
     else
         echo -e "${RED}❗ No config found. Creating default...${NC}"
@@ -276,6 +286,16 @@ change_config() {
         echo -e "${GREEN}✅ Push to HF updated to: $PUSH${NC}"
     else
         echo -e "${CYAN}ℹ️ Push setting unchanged.${NC}"
+    fi
+
+    echo -e "\n${CYAN}${BOLD}📈 Participate in AI Prediction Market:${NC}"
+    read -p "${BOLD}Participate in AI Prediction Market? [Y/n]: ${NC}" market_choice
+    if [ -n "$market_choice" ]; then
+        PARTICIPATE_AI_MARKET=$([[ "$market_choice" =~ ^[Yy]$ ]] && echo "Y" || echo "N")
+        sed -i "s|^PARTICIPATE_AI_MARKET=.*|PARTICIPATE_AI_MARKET=$PARTICIPATE_AI_MARKET|" "$CONFIG_FILE"
+        echo -e "${GREEN}✅ AI Prediction Market participation updated to: $PARTICIPATE_AI_MARKET${NC}"
+    else
+        echo -e "${CYAN}ℹ️ AI Prediction Market setting unchanged.${NC}"
     fi
 
     echo -e "\n${GREEN}✅ Configuration updated!${NC}"
@@ -455,8 +475,9 @@ run_node() {
         source "$CONFIG_FILE"
         echo -e "\n${BOLD}${CYAN}⚙️  CURRENT CONFIGURATION${NC}"
         echo -e "${YELLOW}-------------------------------------------------${NC}"
-        echo -e "🚀 Push to HF     : ${GREEN}$PUSH${NC}"
-        echo -e "🧠 Model Name     : ${GREEN}${MODEL_NAME:-None}${NC}"
+        echo -e "🚀 Push to HF              : ${GREEN}$PUSH${NC}"
+        echo -e "🧠 Model Name              : ${GREEN}${MODEL_NAME:-None}${NC}"
+        echo -e "📈 Participate AI Market   : ${GREEN}$PARTICIPATE_AI_MARKET${NC}"
         echo -e "${YELLOW}-------------------------------------------------${NC}"
     else
         echo -e "${RED}❗ No config found. Creating default...${NC}"
@@ -487,7 +508,7 @@ run_node() {
             6) read -p "Enter custom model (repo/name): " MODEL_NAME ;;
             *) echo -e "${RED}❌ Invalid choice. Using current config.${NC}"; MODEL_NAME="${MODEL_NAME:-}" ;;
         esac
-        sed -i "s/^MODEL_NAME=.*/MODEL_NAME=$MODEL_NAME/" "$CONFIG_FILE"
+        sed -i "s|^MODEL_NAME=.*|MODEL_NAME=$MODEL_NAME|" "$CONFIG_FILE"
     fi
 
     if [ -n "$MODEL_NAME" ]; then
@@ -518,6 +539,7 @@ run_node() {
                 KEEP_TEMP_DATA="$KEEP_TEMP_DATA" ./run_rl_swarm.sh <<EOF
 $PUSH
 $MODEL_NAME
+$PARTICIPATE_AI_MARKET
 EOF
                 log "WARN" "Node crashed, restarting in 5 seconds..."
                 echo -e "${YELLOW}⚠️ Node crashed. Restarting in 5 seconds...${NC}"
@@ -535,6 +557,7 @@ EOF
             KEEP_TEMP_DATA="$KEEP_TEMP_DATA" ./run_rl_swarm.sh <<EOF
 $PUSH
 $MODEL_NAME
+$PARTICIPATE_AI_MARKET
 EOF
             ;;
         3)
