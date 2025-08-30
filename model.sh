@@ -128,6 +128,7 @@ create_default_config() {
     cat <<EOF > "$CONFIG_FILE"
 PUSH=N
 MODEL_NAME=nvidia/AceInstruct-1.5B
+PARTICIPATE_AI_MARKET=Y
 EOF
     chmod 600 "$CONFIG_FILE"
     log "INFO" "Default config created"
@@ -157,6 +158,13 @@ auto_enter_inputs() {
     MODEL_NAME=${MODEL_NAME:-"nvidia/AceInstruct-1.5B"}
     echo -e "${GREEN}>> Using model: $MODEL_NAME${NC}"
     log "INFO" "Using model: $MODEL_NAME"
+    # Added: Automate the AI Prediction Market participation input to default to "Y"
+    if [ -n "$PARTICIPATE_AI_MARKET" ]; then
+        echo -e "${GREEN}>> Would you like your model to participate in the AI Prediction Market? [Y/n] $PARTICIPATE_AI_MARKET${NC}"
+    else
+        PARTICIPATE_AI_MARKET="Y"
+        echo -e "${GREEN}>> Would you like your model to participate in the AI Prediction Market? [Y/n] Y${NC}"
+    fi
 }
 
 install_python_packages() {
@@ -231,12 +239,15 @@ run_node() {
         echo -e "${YELLOW}-------------------------------------------------${NC}"
         echo -e "🚀 Push to HF     : ${GREEN}$PUSH${NC}"
         echo -e "🚀 Model Name     : ${GREEN}$MODEL_NAME${NC}"
+        echo -e "🚀 Participate AI Market: ${GREEN}$PARTICIPATE_AI_MARKET${NC}"
         echo -e "${YELLOW}-------------------------------------------------${NC}"
     else
         echo -e "${RED}❗ No config found. Creating default...${NC}"
         create_default_config
         source "$CONFIG_FILE"
     fi
+    # Added: Set default for PARTICIPATE_AI_MARKET if not set
+    : "${PARTICIPATE_AI_MARKET:=Y}"
     auto_enter_inputs
     : "${KEEP_TEMP_DATA:=true}"
     export KEEP_TEMP_DATA
@@ -255,6 +266,7 @@ run_node() {
         KEEP_TEMP_DATA="$KEEP_TEMP_DATA" ./run_rl_swarm.sh <<EOF
 $PUSH
 $MODEL_NAME
+$PARTICIPATE_AI_MARKET
 EOF
         log "WARN" "Node crashed, restarting in 5 seconds..."
         echo -e "${YELLOW}⚠️ Node crashed. Restarting in 5 seconds...${NC}"
