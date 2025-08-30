@@ -155,6 +155,13 @@ auto_enter_inputs() {
     MODEL_NAME=""
     echo -e "${GREEN}>> Enter the name of the model you want to use in huggingface repo/name format, or press [Enter] to use the default model.${NC}"
     echo -e "${GREEN}>> Using default model from config${NC}"
+    # Added: Automate the AI Prediction Market participation input to default to "Y"
+    if [ -n "$PARTICIPATE_AI_MARKET" ]; then
+        echo -e "${GREEN}>> Would you like your model to participate in the AI Prediction Market? [Y/n] $PARTICIPATE_AI_MARKET${NC}"
+    else
+        PARTICIPATE_AI_MARKET="Y"
+        echo -e "${GREEN}>> Would you like your model to participate in the AI Prediction Market? [Y/n] Y${NC}"
+    fi
 }
 
 install_python_packages() {
@@ -243,10 +250,13 @@ run_node() {
     python3 -m venv .venv
     source .venv/bin/activate
     install_python_packages
+    # Added: Set default for PARTICIPATE_AI_MARKET if not set
+    : "${PARTICIPATE_AI_MARKET:=Y}"
     while true; do
         KEEP_TEMP_DATA="$KEEP_TEMP_DATA" ./run_rl_swarm.sh <<EOF
 $PUSH
 $MODEL_NAME
+$PARTICIPATE_AI_MARKET
 EOF
         log "WARN" "Node crashed, restarting in 5 seconds..."
         echo -e "${YELLOW}⚠️ Node crashed. Restarting in 5 seconds...${NC}"
