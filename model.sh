@@ -182,6 +182,8 @@ install_node() {
     echo -e "${YELLOW}===============================================================================${NC}"
     KEEP_TEMP_DATA=true
     export KEEP_TEMP_DATA
+
+    # Handle swarm.pem
     if [ -f "$SWARM_DIR/swarm.pem" ]; then
         echo -e "\n${YELLOW}⚠️ Existing swarm.pem detected in SWARM_DIR!${NC}"
         echo "1. Keep and use existing Swarm.pem"
@@ -201,6 +203,8 @@ install_node() {
                 ;;
         esac
     fi
+
+    # Spinner function
     spinner() {
         local pid=$1
         local msg="$2"
@@ -213,16 +217,34 @@ install_node() {
         done
         printf "\r$msg ✅ Done"; tput el; echo
     }
+
     ( install_deps ) & spinner $! "📦 Installing dependencies"
     ( clone_repo ) & spinner $! "📥 Cloning repo"
     ( modify_run_script ) & spinner $! "🧠 Modifying run script"
+
+    # Copy swarm.pem back to SWARM_DIR
     if [ -f "$HOME/swarm.pem" ]; then
         sudo cp "$HOME/swarm.pem" "$SWARM_DIR/swarm.pem"
         sudo chmod 600 "$SWARM_DIR/swarm.pem"
     fi
+
+    # ✅ Handle userData.json and userApiKey.json
+    TEMP_DATA_DIR="$SWARM_DIR/modal-login/temp-data"
+    sudo mkdir -p "$TEMP_DATA_DIR"
+
+    for file in "userData.json" "userApiKey.json"; do
+        if [ -f "$HOME/$file" ]; then
+            sudo cp "$HOME/$file" "$TEMP_DATA_DIR/"
+            echo -e "${GREEN}✔️ Copied $file to $TEMP_DATA_DIR${NC}"
+        else
+            echo -e "${YELLOW}⚠️ $file not found in HOME directory${NC}"
+        fi
+    done
+
     echo -e "\n${GREEN}✅ Installation completed!${NC}"
     echo -e "Auto-login: ${GREEN}ENABLED${NC}"
 }
+
 
 run_node() {
     if [ ! -f "$SWARM_DIR/swarm.pem" ]; then
