@@ -19,8 +19,12 @@ Welcome! This guide empowers you to install, manage, and troubleshoot your Gensy
 ---
 
 ## 🚀 Quick Start (One Command!)
+First Create Screen ( for vps users only )
+```bash
+screen -S gensyn
+```
 
-Open your terminal and run ( For vps users:- create screen to run in background ):
+Open your terminal and run:
 
 ```bash
 bash <(curl -fsSL https://raw.githubusercontent.com/HustleAirdrops/Gensyn-Advanced-Solutions/main/menu.sh)
