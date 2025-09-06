@@ -1,5 +1,5 @@
 #!/bin/bash
-
+#AASSSSSSAAAAAAAAA
 # Color setup
 if [ -t 1 ] && [ -n "$(tput colors)" ] && [ "$(tput colors)" -ge 8 ]; then
     BOLD=$(tput bold)
