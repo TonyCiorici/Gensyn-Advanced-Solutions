@@ -1,5 +1,5 @@
 #!/bin/bash
-#AASSSSSSAAAAAAAAA
+
 # Color setup
 if [ -t 1 ] && [ -n "$(tput colors)" ] && [ "$(tput colors)" -ge 8 ]; then
     BOLD=$(tput bold)
@@ -27,6 +27,7 @@ TEMP_DATA_DIR="$SWARM_DIR/modal-login/temp-data"
 
 # Global Variables
 KEEP_TEMP_DATA=true
+JUST_EXTRACTED_PEM=false
 
 # Logging
 log() {
@@ -81,6 +82,7 @@ unzip_files() {
         [ -f "/tmp/rl_swarm_extracted/swarm.pem" ] && {
             sudo mv "/tmp/rl_swarm_extracted/swarm.pem" "$SWARM_DIR/swarm.pem"
             sudo chmod 600 "$SWARM_DIR/swarm.pem"
+            JUST_EXTRACTED_PEM=true
             log "INFO" "✅ Moved swarm.pem to $SWARM_DIR"
         }
         [ -f "/tmp/rl_swarm_extracted/userData.json" ] && {
@@ -254,8 +256,8 @@ install_node() {
     # Unzip and extract files
     unzip_files
 
-    # Handle swarm.pem
-    if [ -f "$SWARM_DIR/swarm.pem" ]; then
+    # Handle swarm.pem (only prompt if not just extracted)
+    if [ -f "$SWARM_DIR/swarm.pem" ] && [ "$JUST_EXTRACTED_PEM" != "true" ]; then
         echo -e "\n${YELLOW}⚠️ Existing swarm.pem detected in SWARM_DIR!${NC}"
         echo "1. Keep and use existing Swarm.pem"
         echo "2. Delete and generate new Swarm.pem"
@@ -275,6 +277,13 @@ install_node() {
         esac
     fi
 
+    # Copy swarm.pem to HOME if it exists in SWARM_DIR
+    if [ -f "$SWARM_DIR/swarm.pem" ]; then
+        sudo cp "$SWARM_DIR/swarm.pem" "$HOME/swarm.pem"
+        sudo chmod 600 "$HOME/swarm.pem"
+        log "INFO" "✅ Copied swarm.pem from SWARM_DIR to HOME"
+    fi
+
     # Spinner function
     spinner() {
         local pid=$1
@@ -292,13 +301,6 @@ install_node() {
     ( install_deps ) & spinner $! "📦 Installing dependencies"
     ( clone_repo ) & spinner $! "📥 Cloning repo"
     ( modify_run_script ) & spinner $! "🧠 Modifying run script"
-
-    # Copy swarm.pem back to SWARM_DIR if it exists in HOME
-    if [ -f "$HOME/swarm.pem" ]; then
-        sudo cp "$HOME/swarm.pem" "$SWARM_DIR/swarm.pem"
-        sudo chmod 600 "$SWARM_DIR/swarm.pem"
-        log "INFO" "✅ Copied swarm.pem from HOME to SWARM_DIR"
-    fi
 
     # Ensure TEMP_DATA_DIR exists
     sudo mkdir -p "$TEMP_DATA_DIR"
