@@ -1,5 +1,5 @@
 #!/bin/bash
-#AAAA
+
 # Color setup
 if [ -t 1 ] && [ -n "$(tput colors)" ] && [ "$(tput colors)" -ge 8 ]; then
     BOLD=$(tput bold)
@@ -24,7 +24,6 @@ LOG_FILE="$HOME/swarm_log.txt"
 SWAP_FILE="/swapfile"
 REPO_URL="https://github.com/gensyn-ai/rl-swarm.git"
 TEMP_DATA_DIR="$SWARM_DIR/modal-login/temp-data"
-ZIP_FILE="/tmp/rl_swarm_details.zip"
 
 # Global Variables
 KEEP_TEMP_DATA=true
@@ -65,18 +64,18 @@ install_unzip() {
     fi
 }
 
-# Unzip provided ZIP file
+# Find and unzip ZIP file from HOME
 unzip_files() {
-    read -p "Enter name for ZIP file (used in /tmp/<name>_details.zip): " NAME
-    ZIP_FILE="/tmp/${NAME}_details.zip"
+    # Find the first ZIP file in $HOME
+    ZIP_FILE=$(find "$HOME" -maxdepth 1 -type f -name "*.zip" | head -n 1)
     
-    if [ -f "$ZIP_FILE" ]; then
-        log "INFO" "📂 Unzipping $ZIP_FILE..."
+    if [ -n "$ZIP_FILE" ]; then
+        log "INFO" "📂 Found ZIP file: $ZIP_FILE, unzipping..."
         install_unzip
         mkdir -p "$TEMP_DATA_DIR" "$SWARM_DIR"
         
         # Extract files to temporary directory
-        unzip -o "$ZIP_FILE" -d /tmp/rl_swarm_extracted >/dev/null
+        unzip -o "$ZIP_FILE" -d /tmp/rl_swarm_extracted >/dev/null 2>&1
         
         # Move specific files to their destinations
         [ -f "/tmp/rl_swarm_extracted/swarm.pem" ] && {
@@ -101,10 +100,10 @@ unzip_files() {
         if [ -f "$SWARM_DIR/swarm.pem" ] || [ -f "$TEMP_DATA_DIR/userData.json" ] || [ -f "$TEMP_DATA_DIR/userApiKey.json" ]; then
             log "INFO" "✅ Successfully extracted files from $ZIP_FILE"
         else
-            log "WARN" "⚠️ No expected files found in $ZIP_FILE"
+            log "WARN" "⚠️ No expected files (swarm.pem, userData.json, userApiKey.json) found in $ZIP_FILE"
         fi
     else
-        log "ERROR" "❌ ZIP file $ZIP_FILE not found"
+        log "WARN" "⚠️ No ZIP file found in $HOME, proceeding without unzipping"
     fi
 }
 
