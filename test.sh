@@ -1,5 +1,5 @@
 #!/bin/bash
-
+#AAAA
 # Color setup
 if [ -t 1 ] && [ -n "$(tput colors)" ] && [ "$(tput colors)" -ge 8 ]; then
     BOLD=$(tput bold)
@@ -65,40 +65,31 @@ install_unzip() {
     fi
 }
 
-# Find and unzip ZIP file from HOME
+# Unzip files from HOME
 unzip_files() {
-    # Find the first ZIP file in $HOME
     ZIP_FILE=$(find "$HOME" -maxdepth 1 -type f -name "*.zip" | head -n 1)
     
     if [ -n "$ZIP_FILE" ]; then
-        log "INFO" "📂 Found ZIP file: $ZIP_FILE, unzipping..."
+        log "INFO" "📂 Found ZIP file: $ZIP_FILE, unzipping to $HOME ..."
         install_unzip
-        mkdir -p "$TEMP_DATA_DIR" "$SWARM_DIR"
-        
-        # Extract files to temporary directory
-        unzip -o "$ZIP_FILE" -d /tmp/rl_swarm_extracted >/dev/null 2>&1
-        
-        # Move specific files to their destinations
-        [ -f "/tmp/rl_swarm_extracted/swarm.pem" ] && {
-            sudo mv "/tmp/rl_swarm_extracted/swarm.pem" "$SWARM_DIR/swarm.pem"
+        unzip -o "$ZIP_FILE" -d "$HOME" >/dev/null 2>&1
+      
+        [ -f "$HOME/swarm.pem" ] && {
+            sudo mv "$HOME/swarm.pem" "$SWARM_DIR/swarm.pem"
             sudo chmod 600 "$SWARM_DIR/swarm.pem"
             JUST_EXTRACTED_PEM=true
             log "INFO" "✅ Moved swarm.pem to $SWARM_DIR"
         }
-        [ -f "/tmp/rl_swarm_extracted/userData.json" ] && {
-            sudo mv "/tmp/rl_swarm_extracted/userData.json" "$TEMP_DATA_DIR/"
+        [ -f "$HOME/userData.json" ] && {
+            sudo mv "$HOME/userData.json" "$TEMP_DATA_DIR/"
             log "INFO" "✅ Moved userData.json to $TEMP_DATA_DIR"
         }
-        [ -f "/tmp/rl_swarm_extracted/userApiKey.json" ] && {
-            sudo mv "/tmp/rl_swarm_extracted/userApiKey.json" "$TEMP_DATA_DIR/"
+        [ -f "$HOME/userApiKey.json" ] && {
+            sudo mv "$HOME/userApiKey.json" "$TEMP_DATA_DIR/"
             log "INFO" "✅ Moved userApiKey.json to $TEMP_DATA_DIR"
         }
-        
-        # Clean up extracted directory
-        rm -rf /tmp/rl_swarm_extracted
-        log "INFO" "🧹 Cleaned up temporary extracted files"
-        
-        # Verify at least one file was extracted
+
+        ls -l "$HOME"
         if [ -f "$SWARM_DIR/swarm.pem" ] || [ -f "$TEMP_DATA_DIR/userData.json" ] || [ -f "$TEMP_DATA_DIR/userApiKey.json" ]; then
             log "INFO" "✅ Successfully extracted files from $ZIP_FILE"
         else
@@ -108,6 +99,7 @@ unzip_files() {
         log "WARN" "⚠️ No ZIP file found in $HOME, proceeding without unzipping"
     fi
 }
+
 
 # Dependencies
 install_deps() {
@@ -253,38 +245,7 @@ install_node() {
     KEEP_TEMP_DATA=true
     export KEEP_TEMP_DATA
 
-    # Unzip and extract files
-    unzip_files
-
-    # Handle swarm.pem (only prompt if not just extracted)
-    if [ -f "$SWARM_DIR/swarm.pem" ] && [ "$JUST_EXTRACTED_PEM" != "true" ]; then
-        echo -e "\n${YELLOW}⚠️ Existing swarm.pem detected in SWARM_DIR!${NC}"
-        echo "1. Keep and use existing Swarm.pem"
-        echo "2. Delete and generate new Swarm.pem"
-        read -p "${BOLD}➡️ Choose action [1-2]: ${NC}" pem_choice
-        case $pem_choice in
-            1)
-                sudo cp "$SWARM_DIR/swarm.pem" "$HOME/swarm.pem"
-                log "INFO" "PEM copied from SWARM_DIR to HOME"
-                ;;
-            2)
-                sudo rm -rf "$HOME/swarm.pem" "$SWARM_DIR/swarm.pem"
-                log "INFO" "Old PEM deleted from SWARM_DIR and HOME"
-                ;;
-            *)
-                echo -e "${RED}❌ Invalid choice. Continuing with existing PEM.${NC}"
-                ;;
-        esac
-    fi
-
-    # Copy swarm.pem to HOME if it exists in SWARM_DIR
-    if [ -f "$SWARM_DIR/swarm.pem" ]; then
-        sudo cp "$SWARM_DIR/swarm.pem" "$HOME/swarm.pem"
-        sudo chmod 600 "$HOME/swarm.pem"
-        log "INFO" "✅ Copied swarm.pem from SWARM_DIR to HOME"
-    fi
-
-    # Spinner function
+    # Spinner helper
     spinner() {
         local pid=$1
         local msg="$2"
@@ -298,13 +259,17 @@ install_node() {
         printf "\r$msg ✅ Done"; tput el; echo
     }
 
+    # Step 1: Install dependencies, clone repo, modify scripts
     ( install_deps ) & spinner $! "📦 Installing dependencies"
     ( clone_repo ) & spinner $! "📥 Cloning repo"
     ( modify_run_script ) & spinner $! "🧠 Modifying run script"
-
-    # Ensure TEMP_DATA_DIR exists
     sudo mkdir -p "$TEMP_DATA_DIR"
-
+    unzip_files
+    if [ -f "$SWARM_DIR/swarm.pem" ]; then
+        sudo cp "$SWARM_DIR/swarm.pem" "$HOME/swarm.pem"
+        sudo chmod 600 "$HOME/swarm.pem"
+        log "INFO" "✅ Copied swarm.pem from SWARM_DIR to HOME"
+    fi
     echo -e "\n${GREEN}✅ Installation completed!${NC}"
     echo -e "Auto-login: ${GREEN}ENABLED${NC}"
 }
@@ -353,7 +318,6 @@ EOF
     done
 }
 
-# Check if installed and execute
 init
 trap "echo -e '\n${GREEN}✅ Stopped gracefully${NC}'; exit 0" SIGINT
 if [ -d "$SWARM_DIR" ] && [ -f "$SWARM_DIR/run_rl_swarm.sh" ]; then
