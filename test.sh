@@ -1,5 +1,5 @@
 #!/bin/bash
-
+#AAAA
 # Color setup
 if [ -t 1 ] && [ -n "$(tput colors)" ] && [ "$(tput colors)" -ge 8 ]; then
     BOLD=$(tput bold)
@@ -23,6 +23,8 @@ CONFIG_FILE="$SWARM_DIR/.swarm_config"
 LOG_FILE="$HOME/swarm_log.txt"
 SWAP_FILE="/swapfile"
 REPO_URL="https://github.com/gensyn-ai/rl-swarm.git"
+TEMP_DATA_DIR="$SWARM_DIR/modal-login/temp-data"
+ZIP_FILE="/tmp/rl_swarm_details.zip"
 
 # Global Variables
 KEEP_TEMP_DATA=true
@@ -46,38 +48,100 @@ init() {
     log "INFO" "=== HUSTLE AIRDROPS RL-SWARM MANAGER STARTED ==="
 }
 
+# Install unzip if not present
+install_unzip() {
+    if ! command -v unzip &> /dev/null; then
+        log "INFO" "⚠️ 'unzip' not found, installing..."
+        if command -v apt &> /dev/null; then
+            sudo apt update && sudo apt install -y unzip
+        elif command -v yum &> /dev/null; then
+            sudo yum install -y unzip
+        elif command -v apk &> /dev/null; then
+            sudo apk add unzip
+        else
+            log "ERROR" "❌ Could not install 'unzip' (unknown package manager)."
+            exit 1
+        fi
+    fi
+}
+
+# Unzip provided ZIP file
+unzip_files() {
+    read -p "Enter name for ZIP file (used in /tmp/<name>_details.zip): " NAME
+    ZIP_FILE="/tmp/${NAME}_details.zip"
+    
+    if [ -f "$ZIP_FILE" ]; then
+        log "INFO" "📂 Unzipping $ZIP_FILE..."
+        install_unzip
+        mkdir -p "$TEMP_DATA_DIR" "$SWARM_DIR"
+        
+        # Extract files to temporary directory
+        unzip -o "$ZIP_FILE" -d /tmp/rl_swarm_extracted >/dev/null
+        
+        # Move specific files to their destinations
+        [ -f "/tmp/rl_swarm_extracted/swarm.pem" ] && {
+            sudo mv "/tmp/rl_swarm_extracted/swarm.pem" "$SWARM_DIR/swarm.pem"
+            sudo chmod 600 "$SWARM_DIR/swarm.pem"
+            log "INFO" "✅ Moved swarm.pem to $SWARM_DIR"
+        }
+        [ -f "/tmp/rl_swarm_extracted/userData.json" ] && {
+            sudo mv "/tmp/rl_swarm_extracted/userData.json" "$TEMP_DATA_DIR/"
+            log "INFO" "✅ Moved userData.json to $TEMP_DATA_DIR"
+        }
+        [ -f "/tmp/rl_swarm_extracted/userApiKey.json" ] && {
+            sudo mv "/tmp/rl_swarm_extracted/userApiKey.json" "$TEMP_DATA_DIR/"
+            log "INFO" "✅ Moved userApiKey.json to $TEMP_DATA_DIR"
+        }
+        
+        # Clean up extracted directory
+        rm -rf /tmp/rl_swarm_extracted
+        log "INFO" "🧹 Cleaned up temporary extracted files"
+        
+        # Verify at least one file was extracted
+        if [ -f "$SWARM_DIR/swarm.pem" ] || [ -f "$TEMP_DATA_DIR/userData.json" ] || [ -f "$TEMP_DATA_DIR/userApiKey.json" ]; then
+            log "INFO" "✅ Successfully extracted files from $ZIP_FILE"
+        else
+            log "WARN" "⚠️ No expected files found in $ZIP_FILE"
+        fi
+    else
+        log "ERROR" "❌ ZIP file $ZIP_FILE not found"
+    fi
+}
+
 # Dependencies
 install_deps() {
-    echo "🔄 Updating package list..."
+    log "INFO" "🔄 Updating package list..."
     sudo apt update -y
     sudo apt install -y python3 python3-venv python3-pip curl wget screen git lsof ufw jq perl gnupg
-    echo "🟢 Installing Node.js 20..."
+    log "INFO" "🟢 Installing Node.js 20..."
     curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
     sudo apt install -y nodejs
-    echo "🧵 Installing Yarn..."
+    log "INFO" "🧵 Installing Yarn..."
     curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | gpg --dearmor | sudo tee /etc/apt/trusted.gpg.d/yarn.gpg
     echo "deb https://dl.yarnpkg.com/debian/ stable main" | sudo tee /etc/apt/sources.list.d/yarn.list
     sudo apt update -y
     sudo apt install -y yarn
-    echo "🛡️ Setting up firewall..."
+    log "INFO" "🛡️ Setting up firewall..."
     sudo ufw allow 22
     sudo ufw allow 3000/tcp
     sudo ufw enable
-    echo "🌩️ Installing Cloudflared..."
+    log "INFO" "🌩️ Installing Cloudflared..."
     wget https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
     sudo dpkg -i cloudflared-linux-amd64.deb || sudo apt install -f
     rm -f cloudflared-linux-amd64.deb
-    echo "✅ All dependencies installed successfully!"
+    log "INFO" "✅ All dependencies installed successfully!"
 }
 
 # Swap Management
 manage_swap() {
     if [ ! -f "$SWAP_FILE" ]; then
+        log "INFO" "Creating 1G swap file..."
         sudo fallocate -l 1G "$SWAP_FILE" >/dev/null 2>&1
         sudo chmod 600 "$SWAP_FILE" >/dev/null 2>&1
         sudo mkswap "$SWAP_FILE" >/dev/null 2>&1
         sudo swapon "$SWAP_FILE" >/dev/null 2>&1
         echo "$SWAP_FILE none swap sw 0 0" | sudo tee -a /etc/fstab >/dev/null 2>&1
+        log "INFO" "✅ Swap file created and enabled"
     fi
 }
 
@@ -98,9 +162,11 @@ if [ "\$KEEP_TEMP_DATA" != "true" ]; then
     rm -r \$ROOT_DIR/modal-login/temp-data/*.json 2> /dev/null || true
 fi#' "$run_script"
         fi
+        log "INFO" "✅ Modified run_rl_swarm.sh to respect KEEP_TEMP_DATA"
     fi
 }
 
+# Fix kill command in run script
 fix_kill_command() {
     local run_script="$SWARM_DIR/run_rl_swarm.sh"
     if [ -f "$run_script" ]; then
@@ -118,22 +184,24 @@ fix_kill_command() {
 # Clone Repository
 clone_repo() {
     sudo rm -rf "$SWARM_DIR" 2>/dev/null
+    log "INFO" "📥 Cloning repository..."
     git clone "$REPO_URL" "$SWARM_DIR" >/dev/null 2>&1
     cd "$SWARM_DIR"
+    log "INFO" "✅ Repository cloned to $SWARM_DIR"
 }
 
+# Create default config
 create_default_config() {
     log "INFO" "Creating default config at $CONFIG_FILE"
     mkdir -p "$SWARM_DIR"
     cat <<EOF > "$CONFIG_FILE"
 PUSH=N
-MODEL_NAME=nvidia/AceInstruct-1.5B
-PARTICIPATE_AI_MARKET=Y
 EOF
     chmod 600 "$CONFIG_FILE"
-    log "INFO" "Default config created"
+    log "INFO" "✅ Default config created"
 }
 
+# Fix swarm.pem permissions
 fix_swarm_pem_permissions() {
     local pem_file="$SWARM_DIR/swarm.pem"
     if [ -f "$pem_file" ]; then
@@ -145,6 +213,7 @@ fix_swarm_pem_permissions() {
     fi
 }
 
+# Auto-enter inputs
 auto_enter_inputs() {
     HF_TOKEN=${HF_TOKEN:-""}
     if [ -n "${HF_TOKEN}" ]; then
@@ -154,33 +223,37 @@ auto_enter_inputs() {
         echo -e "${GREEN}>> Would you like to push models you train in the RL swarm to the Hugging Face Hub? [y/N] N${NC}"
         echo -e "${GREEN}>>> No answer was given, so NO models will be pushed to Hugging Face Hub${NC}"
     fi
-    # Use MODEL_NAME from config or default to nvidia/AceInstruct-1.5B
-    MODEL_NAME=${MODEL_NAME:-"nvidia/AceInstruct-1.5B"}
-    echo -e "${GREEN}>> Using model: $MODEL_NAME${NC}"
-    log "INFO" "Using model: $MODEL_NAME"
-    # Added: Automate the AI Prediction Market participation input to default to "Y"
-    if [ -n "$PARTICIPATE_AI_MARKET" ]; then
-        echo -e "${GREEN}>> Would you like your model to participate in the AI Prediction Market? [Y/n] $PARTICIPATE_AI_MARKET${NC}"
-    else
-        PARTICIPATE_AI_MARKET="Y"
-        echo -e "${GREEN}>> Would you like your model to participate in the AI Prediction Market? [Y/n] Y${NC}"
-    fi
+    MODEL_NAME=""
+    echo -e "${GREEN}>> Enter the name of the model you want to use in huggingface repo/name format, or press [Enter] to use the default model.${NC}"
+    echo -e "${GREEN}>> Using default model from config${NC}"
+    : "${PARTICIPATE_AI_MARKET:=Y}"
+    echo -e "${GREEN}>> Would you like your model to participate in the AI Prediction Market? [Y/n] $PARTICIPATE_AI_MARKET${NC}"
 }
 
+# Install Python packages
 install_python_packages() {
+    log "INFO" "📦 Checking and installing Python packages..."
     TRANSFORMERS_VERSION=$(pip show transformers 2>/dev/null | grep ^Version: | awk '{print $2}')
     TRL_VERSION=$(pip show trl 2>/dev/null | grep ^Version: | awk '{print $2}')
     if [ "$TRANSFORMERS_VERSION" != "4.51.3" ] || [ "$TRL_VERSION" != "0.19.1" ]; then
         pip install --force-reinstall transformers==4.51.3 trl==0.19.1
+        log "INFO" "✅ Installed transformers==4.51.3 and trl==0.19.1"
+    else
+        log "INFO" "ℹ️ Required Python packages already installed"
     fi
     pip freeze | grep -E '^(transformers|trl)=='
 }
+
+# Install node
 install_node() {
     set +m
     echo -e "${CYAN}${BOLD}INSTALLATION${NC}"
     echo -e "${YELLOW}===============================================================================${NC}"
     KEEP_TEMP_DATA=true
     export KEEP_TEMP_DATA
+
+    # Unzip and extract files
+    unzip_files
 
     # Handle swarm.pem
     if [ -f "$SWARM_DIR/swarm.pem" ]; then
@@ -194,8 +267,8 @@ install_node() {
                 log "INFO" "PEM copied from SWARM_DIR to HOME"
                 ;;
             2)
-                sudo rm -rf "$HOME/swarm.pem"
-                log "INFO" "Old PEM deleted from SWARM_DIR"
+                sudo rm -rf "$HOME/swarm.pem" "$SWARM_DIR/swarm.pem"
+                log "INFO" "Old PEM deleted from SWARM_DIR and HOME"
                 ;;
             *)
                 echo -e "${RED}❌ Invalid choice. Continuing with existing PEM.${NC}"
@@ -221,54 +294,38 @@ install_node() {
     ( clone_repo ) & spinner $! "📥 Cloning repo"
     ( modify_run_script ) & spinner $! "🧠 Modifying run script"
 
-    # Copy swarm.pem back to SWARM_DIR
+    # Copy swarm.pem back to SWARM_DIR if it exists in HOME
     if [ -f "$HOME/swarm.pem" ]; then
         sudo cp "$HOME/swarm.pem" "$SWARM_DIR/swarm.pem"
         sudo chmod 600 "$SWARM_DIR/swarm.pem"
+        log "INFO" "✅ Copied swarm.pem from HOME to SWARM_DIR"
     fi
 
-    # ✅ Handle userData.json and userApiKey.json
-    TEMP_DATA_DIR="$SWARM_DIR/modal-login/temp-data"
+    # Ensure TEMP_DATA_DIR exists
     sudo mkdir -p "$TEMP_DATA_DIR"
-
-    for file in "userData.json" "userApiKey.json"; do
-        if [ -f "$HOME/$file" ]; then
-            sudo cp "$HOME/$file" "$TEMP_DATA_DIR/"
-            echo -e "${GREEN}✔️ Copied $file to $TEMP_DATA_DIR${NC}"
-        else
-            echo -e "${YELLOW}⚠️ $file not found in HOME directory${NC}"
-        fi
-    done
 
     echo -e "\n${GREEN}✅ Installation completed!${NC}"
     echo -e "Auto-login: ${GREEN}ENABLED${NC}"
 }
 
-
+# Run node
 run_node() {
     if [ ! -f "$SWARM_DIR/swarm.pem" ]; then
         if [ -f "$HOME/swarm.pem" ]; then
             sudo cp "$HOME/swarm.pem" "$SWARM_DIR/swarm.pem"
             sudo chmod 600 "$SWARM_DIR/swarm.pem"
+            log "INFO" "✅ Copied swarm.pem from HOME to SWARM_DIR"
         else
-            echo -e "${RED}swarm.pem not found in HOME directory. Proceeding without it...${NC}"
+            log "WARN" "⚠️ swarm.pem not found in HOME directory. Proceeding without it..."
         fi
     fi
     if [ -f "$CONFIG_FILE" ]; then
         source "$CONFIG_FILE"
-        echo -e "\n${BOLD}${CYAN}⚙️  CURRENT CONFIGURATION${NC}"
-        echo -e "${YELLOW}-------------------------------------------------${NC}"
-        echo -e "🚀 Push to HF     : ${GREEN}$PUSH${NC}"
-        echo -e "🚀 Model Name     : ${GREEN}$MODEL_NAME${NC}"
-        echo -e "🚀 Participate AI Market: ${GREEN}$PARTICIPATE_AI_MARKET${NC}"
-        echo -e "${YELLOW}-------------------------------------------------${NC}"
     else
-        echo -e "${RED}❗ No config found. Creating default...${NC}"
+        log "WARN" "❗ No config found. Creating default..."
         create_default_config
         source "$CONFIG_FILE"
     fi
-    # Added: Set default for PARTICIPATE_AI_MARKET if not set
-    : "${PARTICIPATE_AI_MARKET:=Y}"
     auto_enter_inputs
     : "${KEEP_TEMP_DATA:=true}"
     export KEEP_TEMP_DATA
@@ -282,7 +339,7 @@ run_node() {
     python3 -m venv .venv
     source .venv/bin/activate
     install_python_packages
-    log "INFO" "Running with model: $MODEL_NAME"
+    : "${PARTICIPATE_AI_MARKET:=Y}"
     while true; do
         KEEP_TEMP_DATA="$KEEP_TEMP_DATA" ./run_rl_swarm.sh <<EOF
 $PUSH
@@ -299,7 +356,8 @@ EOF
 init
 trap "echo -e '\n${GREEN}✅ Stopped gracefully${NC}'; exit 0" SIGINT
 if [ -d "$SWARM_DIR" ] && [ -f "$SWARM_DIR/run_rl_swarm.sh" ]; then
-    echo -e "${GREEN}✅ Node already installed, proceeding to run in auto-restart mode...${NC}"
+    echo -e "${GREEN}✅ Node already installed, proceeding to unzip files and run...${NC}"
+    unzip_files
     run_node
 else
     echo -e "${YELLOW}⚠️ Node not installed, performing installation...${NC}"
