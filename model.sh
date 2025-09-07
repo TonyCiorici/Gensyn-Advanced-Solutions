@@ -23,6 +23,7 @@ CONFIG_FILE="$SWARM_DIR/.swarm_config"
 LOG_FILE="$HOME/swarm_log.txt"
 SWAP_FILE="/swapfile"
 REPO_URL="https://github.com/gensyn-ai/rl-swarm.git"
+TEMP_DATA_DIR="$SWARM_DIR/modal-login/temp-data"
 
 # Global Variables
 KEEP_TEMP_DATA=true
