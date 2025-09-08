@@ -333,6 +333,7 @@ EOF
 
         sleep 5
     done
+}   # ✅ yeh closing bracket missing tha
 
 init
 trap "echo -e '\n${GREEN}✅ Stopped gracefully${NC}'; exit 0" SIGINT
@@ -345,3 +346,4 @@ else
     install_node
     run_node
 fi
+
