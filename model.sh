@@ -229,6 +229,10 @@ install_python_packages() {
     pip freeze | grep -E '^(transformers|trl)=='
 }
 
+has_error() {
+    grep -qP '(current.?batch|UnboundLocalError|Daemon failed to start|FileNotFoundError|DHTNode bootstrap failed|Failed to connect to Gensyn Testnet|Killed|argument of type '\''NoneType'\'' is not iterable|Encountered error during training|cannot unpack non-iterable NoneType object|ConnectionRefusedError|Exception occurred during game run|get_logger\(\)\.exception)' "$LOG_FILE"
+}
+
 install_node() {
     set +m
     echo -e "${CYAN}${BOLD}INSTALLATION${NC}"
@@ -276,24 +280,27 @@ run_node() {
             echo -e "${RED}swarm.pem not found in HOME directory. Proceeding without it...${NC}"
         fi
     fi
+
     if [ -f "$CONFIG_FILE" ]; then
         source "$CONFIG_FILE"
         echo -e "\n${BOLD}${CYAN}⚙️  CURRENT CONFIGURATION${NC}"
         echo -e "${YELLOW}-------------------------------------------------${NC}"
-        echo -e "🚀 Push to HF     : ${GREEN}$PUSH${NC}"
-        echo -e "🚀 Model Name     : ${GREEN}$MODEL_NAME${NC}"
-        echo -e "🚀 Participate AI Market: ${GREEN}$PARTICIPATE_AI_MARKET${NC}"
+        echo -e "🚀 Push to HF              : ${GREEN}$PUSH${NC}"
+        echo -e "🚀 Model Name              : ${GREEN}$MODEL_NAME${NC}"
+        echo -e "🚀 Participate AI Market   : ${GREEN}$PARTICIPATE_AI_MARKET${NC}"
         echo -e "${YELLOW}-------------------------------------------------${NC}"
     else
         echo -e "${RED}❗ No config found. Creating default...${NC}"
         create_default_config
         source "$CONFIG_FILE"
     fi
-    # Added: Set default for PARTICIPATE_AI_MARKET if not set
+
+    # Defaults
     : "${PARTICIPATE_AI_MARKET:=Y}"
-    auto_enter_inputs
     : "${KEEP_TEMP_DATA:=true}"
     export KEEP_TEMP_DATA
+
+    auto_enter_inputs
     modify_run_script
     sudo chmod +x "$SWARM_DIR/run_rl_swarm.sh"
     fix_kill_command
@@ -305,14 +312,25 @@ run_node() {
     source .venv/bin/activate
     install_python_packages
     log "INFO" "Running with model: $MODEL_NAME"
+
     while true; do
-        KEEP_TEMP_DATA="$KEEP_TEMP_DATA" ./run_rl_swarm.sh <<EOF
+        LOG_FILE="$SWARM_DIR/node.log"
+        : > "$LOG_FILE"
+
+        KEEP_TEMP_DATA="$KEEP_TEMP_DATA" ./run_rl_swarm.sh <<EOF | tee "$LOG_FILE"
 $PUSH
 $MODEL_NAME
 $PARTICIPATE_AI_MARKET
 EOF
-        log "WARN" "Node crashed, restarting in 5 seconds..."
-        echo -e "${YELLOW}⚠️ Node crashed. Restarting in 5 seconds...${NC}"
+
+        if has_error; then
+            log "ERROR" "❌ Critical error detected, restarting in 5 seconds..."
+            echo -e "${RED}❌ Critical error detected. Restarting in 5 seconds...${NC}"
+        else
+            log "WARN" "⚠️ Node exited without critical error, restarting in 5 seconds..."
+            echo -e "${YELLOW}⚠️ Node exited (non-critical). Restarting in 5 seconds...${NC}"
+        fi
+
         sleep 5
     done
 }
