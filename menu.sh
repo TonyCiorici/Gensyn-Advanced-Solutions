@@ -157,6 +157,10 @@ fi#' "$run_script"
     fi
 }
 
+has_error() {
+    grep -qP '(current.?batch|UnboundLocalError|Daemon failed to start|FileNotFoundError|DHTNode bootstrap failed|Failed to connect to Gensyn Testnet|Killed|argument of type '\''NoneType'\'' is not iterable|Encountered error during training|cannot unpack non-iterable NoneType object|ConnectionRefusedError|Exception occurred during game run|get_logger\(\)\.exception)' "$LOG_FILE"
+}
+
 fix_kill_command() {
     local run_script="$SWARM_DIR/run_rl_swarm.sh"
 
@@ -535,14 +539,22 @@ run_node() {
             python3 -m venv .venv
             source .venv/bin/activate
             install_python_packages
+            : "${PARTICIPATE_AI_MARKET:=Y}"
             while true; do
-                KEEP_TEMP_DATA="$KEEP_TEMP_DATA" ./run_rl_swarm.sh <<EOF
+                LOG_FILE="$SWARM_DIR/node.log"
+                : > "$LOG_FILE"
+                KEEP_TEMP_DATA="$KEEP_TEMP_DATA" ./run_rl_swarm.sh <<EOF | tee "$LOG_FILE"
 $PUSH
 $MODEL_NAME
 $PARTICIPATE_AI_MARKET
 EOF
-                log "WARN" "Node crashed, restarting in 5 seconds..."
-                echo -e "${YELLOW}⚠️ Node crashed. Restarting in 5 seconds...${NC}"
+                if has_error; then
+                    log "ERROR" "❌ Critical error detected, restarting in 5 seconds..."
+                    echo -e "${RED}❌ Critical error detected. Restarting in 5 seconds...${NC}"
+                else
+                    log "WARN" "⚠️ Node exited without critical error, restarting in 5 seconds..."
+                    echo -e "${YELLOW}⚠️ Node exited (non-critical). Restarting in 5 seconds...${NC}"
+                fi
                 sleep 5
             done
             ;;
@@ -554,7 +566,10 @@ EOF
             python3 -m venv .venv
             source .venv/bin/activate
             install_python_packages
-            KEEP_TEMP_DATA="$KEEP_TEMP_DATA" ./run_rl_swarm.sh <<EOF
+            : "${PARTICIPATE_AI_MARKET:=Y}"
+            LOG_FILE="$SWARM_DIR/node.log"
+            : > "$LOG_FILE"
+            KEEP_TEMP_DATA="$KEEP_TEMP_DATA" ./run_rl_swarm.sh <<EOF | tee "$LOG_FILE"
 $PUSH
 $MODEL_NAME
 $PARTICIPATE_AI_MARKET
