@@ -158,18 +158,13 @@ fi#' "$run_script"
 }
 
 has_error() {
-    if grep -q -E "torch.OutOfMemoryError:|CUDA out of memory|RuntimeError|Exception|ERROR|Traceback" "$LOG_FILE"; then
+    if grep -qP '(current.?batch|UnboundLocalError|Daemon failed to start|FileNotFoundError|DHTNode bootstrap failed|Failed to connect to Gensyn Testnet|Killed|argument of type '\''NoneType'\'' is not iterable|Encountered error during training|cannot unpack non-iterable NoneType object|ConnectionRefusedError|Exception occurred during game run|get_logger\(\)\.exception|RuntimeError: CUDA out of memory|torch\.OutOfMemoryError(:|$)|CUDNN_STATUS_ALLOC_FAILED|ERROR|Traceback)' "$LOG_FILE"; then
         echo "✅ has_error(): crash detected in logs"
         return 0
     else
         return 1
     fi
 }
-
-
-
-
-
 
 fix_kill_command() {
     local run_script="$SWARM_DIR/run_rl_swarm.sh"
@@ -571,7 +566,7 @@ $PARTICIPATE_AI_MARKET
 EOF
 
         # Check for critical errors including CUDA OOM
-        if grep -qP '(OutOfMemoryError|Exception occurred during game run|RuntimeError: CUDA out of memory)' "$LOG_FILE"; then
+        if grep -qP '(current.?batch|UnboundLocalError|Daemon failed to start|FileNotFoundError|DHTNode bootstrap failed|Failed to connect to Gensyn Testnet|Killed|argument of type '\''NoneType'\'' is not iterable|Encountered error during training|cannot unpack non-iterable NoneType object|ConnectionRefusedError|Exception occurred during game run|get_logger\(\)\.exception|RuntimeError: CUDA out of memory|torch\.OutOfMemoryError(:|$)|CUDNN_STATUS_ALLOC_FAILED|ERROR|Traceback)' "$LOG_FILE"; then
             log "ERROR" "❌ Critical error detected (OOM or other). Restarting in 5 seconds..."
             echo -e "${RED}❌ Critical error detected (OOM or other). Restarting in 5 seconds...${NC}"
             sleep 5
@@ -582,6 +577,7 @@ EOF
         fi
     done
     ;;
+
         2)
             log "INFO" "Starting node in single-run mode"
             cd "$SWARM_DIR"
