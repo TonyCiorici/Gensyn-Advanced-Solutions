@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🌀 Gensyn Node Unified Setup Guide
+# 🌀 Gensyn Node Unified Setup Guide + OOM RESTART
 
 **The Ultimate One-Command Solution for Gensyn Node Management**
 
