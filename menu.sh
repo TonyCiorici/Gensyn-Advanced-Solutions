@@ -158,13 +158,14 @@ fi#' "$run_script"
 }
 
 has_error() {
-    if grep -qP '(current.?batch|UnboundLocalError|Daemon failed to start|FileNotFoundError|DHTNode bootstrap failed|Failed to connect to Gensyn Testnet|Killed|argument of type '\''NoneType'\'' is not iterable|Encountered error during training|cannot unpack non-iterable NoneType object|ConnectionRefusedError|Exception occurred during game run|get_logger\(\)\.exception|RuntimeError: CUDA out of memory|torch\.OutOfMemoryError:|CUDNN_STATUS_ALLOC_FAILED|ERROR|Traceback)' "$LOG_FILE"; then
+    if grep -q -E "torch.OutOfMemoryError:|CUDA out of memory|RuntimeError|Exception|ERROR|Traceback" "$LOG_FILE"; then
         echo "✅ has_error(): crash detected in logs"
         return 0
     else
         return 1
     fi
 }
+
 
 
 
