@@ -533,33 +533,47 @@ run_node() {
     fix_kill_command
     
     case $run_choice in
-        1)
-            log "INFO" "Starting node in auto-restart mode"
-            cd "$SWARM_DIR"
-            fix_swarm_pem_permissions
-            manage_swap
-            python3 -m venv .venv
-            source .venv/bin/activate
-            install_python_packages
-            : "${PARTICIPATE_AI_MARKET:=Y}"
-            while true; do
-                LOG_FILE="$SWARM_DIR/node.log"
-                : > "$LOG_FILE"
-                KEEP_TEMP_DATA="$KEEP_TEMP_DATA" ./run_rl_swarm.sh <<EOF | tee "$LOG_FILE"
+       1)
+    log "INFO" "Starting node in auto-restart mode"
+    cd "$SWARM_DIR"
+    fix_swarm_pem_permissions
+    manage_swap
+    python3 -m venv .venv
+    source .venv/bin/activate
+    install_python_packages
+    : "${PARTICIPATE_AI_MARKET:=Y}"
+
+    while true; do
+        LOG_FILE="$SWARM_DIR/node.log"
+        : > "$LOG_FILE"
+
+        # Kill any leftover swarm processes
+        pids=$(pgrep -f run_rl_swarm.sh)
+        if [ -n "$pids" ]; then
+            echo -e "${CYAN}🛑 Killing leftover processes...${NC}"
+            kill -9 $pids || true
+            sleep 2
+        fi
+
+        # Run the swarm node in foreground and wait
+        KEEP_TEMP_DATA="$KEEP_TEMP_DATA" ./run_rl_swarm.sh <<EOF | tee "$LOG_FILE"
 $PUSH
 $MODEL_NAME
 $PARTICIPATE_AI_MARKET
 EOF
-                if has_error; then
-                    log "ERROR" "❌ Critical error detected, restarting in 5 seconds..."
-                    echo -e "${RED}❌ Critical error detected. Restarting in 5 seconds...${NC}"
-                else
-                    log "WARN" "⚠️ Node exited without critical error, restarting in 5 seconds..."
-                    echo -e "${YELLOW}⚠️ Node exited (non-critical). Restarting in 5 seconds...${NC}"
-                fi
-                sleep 5
-            done
-            ;;
+
+        # Check for critical errors including CUDA OOM
+        if grep -qP '(OutOfMemoryError|Exception occurred during game run|RuntimeError: CUDA out of memory)' "$LOG_FILE"; then
+            log "ERROR" "❌ Critical error detected (OOM or other). Restarting in 5 seconds..."
+            echo -e "${RED}❌ Critical error detected (OOM or other). Restarting in 5 seconds...${NC}"
+            sleep 5
+        else
+            log "WARN" "⚠️ Node exited normally. Restarting in 5 seconds..."
+            echo -e "${YELLOW}⚠️ Node exited normally. Restarting in 5 seconds...${NC}"
+            sleep 5
+        fi
+    done
+    ;;
         2)
             log "INFO" "Starting node in single-run mode"
             cd "$SWARM_DIR"
